@@ -1,7 +1,11 @@
 using BookingsSportsFields;
+using BookingsSportsFields.Application.InterfaceServices;
+using BookingsSportsFields.Application.Services;
 using BookingsSportsFields.Application.ServicesForEmail;
 using BookingsSportsFields.DataAccess;
+using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
+using BookingsSportsFields.DataAccess.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -31,8 +35,20 @@ builder.Services.AddIdentityCore<UserEntity>()
 
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 
-builder.Services.AddTransient<IMailService, MailService>();
 
+builder.Services.AddScoped<ISportsFieldsRepository, SportsFieldsRepository>();
+
+builder.Services.AddTransient<IMailService, MailService>();
+builder.Services.AddScoped<ISportFildService, SportFildService>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend",
+        policy => policy.WithOrigins("http://localhost:5173") // Дозволяє твоєму React-додатку робити запити Важливо без /
+                        .AllowAnyHeader()
+                        .AllowAnyMethod());
+                        //.AllowCredentials()); // Якщо використовуєш аутентифікацію через cookies
+}); ;
 
 var app = builder.Build();
 
@@ -43,7 +59,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
@@ -62,5 +78,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-

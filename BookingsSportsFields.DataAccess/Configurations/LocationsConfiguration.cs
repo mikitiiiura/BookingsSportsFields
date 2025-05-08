@@ -13,8 +13,13 @@ public class LocationsConfiguration : IEntityTypeConfiguration<LocationsEntity>
             .HasMaxLength(255);
 
         builder.HasOne(l => l.SportsFields)
-            .WithMany()
-            .HasForeignKey(l => l.SportsFieldId)
+            .WithOne(s => s.Location)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Property(l => l.Latitude)
+            .HasPrecision(18, 9); // або інші значення, які підходять для ваших потреб
+
+        builder.Property(l => l.Longitude)
+            .HasPrecision(18, 9);
     }
 }

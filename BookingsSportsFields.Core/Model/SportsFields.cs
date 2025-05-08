@@ -28,8 +28,8 @@ namespace BookingsSportsFields.Core.Model
 
     public enum SportFieldsType
     {
-        Football = 1,
-        Tennis = 2,
-        Basketball = 3
+        Football = 0,
+        Tennis = 1,
+        Basketball = 2
     }
 }

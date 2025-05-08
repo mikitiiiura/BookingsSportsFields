@@ -8,8 +8,15 @@ public class BookingsConfiguration : IEntityTypeConfiguration<BookingsEntity>
     {
         builder.HasKey(b => b.Id);
 
+        builder.Property(b => b.Comment)
+            .HasMaxLength(255);
+
         builder.Property(b => b.TotalPrice)
+            .IsRequired()
             .HasColumnType("decimal(18,2)");
+
+        builder.Property(b => b.CreatedAt)
+            .HasDefaultValueSql("GETUTCDATE()");
 
         builder.HasOne(b => b.User)
             .WithMany()
@@ -17,7 +24,7 @@ public class BookingsConfiguration : IEntityTypeConfiguration<BookingsEntity>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(b => b.SportsField)
-            .WithMany()
+            .WithMany(s => s.Bookings)
             .HasForeignKey(b => b.SportsFieldId)
             .OnDelete(DeleteBehavior.Cascade);
     }

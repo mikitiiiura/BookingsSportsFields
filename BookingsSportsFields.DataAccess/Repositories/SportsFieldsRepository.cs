@@ -1,4 +1,5 @@
 ﻿using BookingsSportsFields.Core.Model;
+using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace BookingsSportsFields.DataAccess.Repositories
 {
-    public class SportsFieldsRepository
+    public class SportsFieldsRepository : ISportsFieldsRepository
     {
         private readonly BookingsSportsFieldsDBContext _dBContext;
         private readonly ILogger<SportsFieldsRepository> _logger;
@@ -31,7 +32,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
             return await _dBContext.SportsFields
                 .Include(sf => sf.Location) // Навігаційна властивість
                 .Include(sf => sf.Owner) // Навігаційна властивість
-                .Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
+                //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -47,7 +48,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .Where(sp => sp.OwnerId == ownerId)
                 .Include(sf => sf.Location) // Навігаційна властивість
                 .Include(sf => sf.Owner) // Навігаційна властивість
-                .Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
+                                         //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -85,7 +86,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
             existingSportsFilds.Description = sportsFilds.Description;
             existingSportsFilds.CreatedAt = sportsFilds.CreatedAt;
             existingSportsFilds.LocationId = sportsFilds.LocationId;  //Тут потрібнго додати перевірку і якимось чином додавати 
-                                                                        //зображення цих же спортивних майданчиків
+                                                                      //зображення цих же спортивних майданчиків
             existingSportsFilds.OwnerId = sportsFilds.OwnerId;
             //existingSportsFilds.Images = sportsFilds.Images;//незнаю чи це норм
 
@@ -93,38 +94,99 @@ namespace BookingsSportsFields.DataAccess.Repositories
             await _dBContext.SaveChangesAsync();
         }
 
-        
-        public async Task<List<SportsFieldsEntity>> GetFilteredFild(string? search, string? type ) 
+        /// <summary>
+        /// Filtered Fild
+        /// </summary>
+        /// <param name="search"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
         {
-            _logger.LogInformation("Fetching filtered sportFild");
+            _logger.LogInformation("Fetching filtered sport fields");
             try
             {
                 var query = _dBContext.SportsFields
                     .Include(s => s.Location)
                     .Include(s => s.Owner)
-                    .Include(s => s.Images)
+                    .Include(s => s.Bookings)
                     .AsNoTracking()
                     .AsQueryable();
 
-                if (!string.IsNullOrWhiteSpace(search))
+                if (type.HasValue)
                 {
-                    query = query.Where(s => EF.Functions.Like(s.Name, $"%{search}") || EF.Functions.Like(s.Location.Address, $"%{search}")); 
+                    query = query.Where(s => (int)s.Type == type.Value);
                 }
 
-                if (!string.IsNullOrWhiteSpace(type))
+                if (!string.IsNullOrEmpty(searchTitleOrAddres))
                 {
-                    query = query.Where(s => (s.Type.ToString().ToLower()) == (type.ToLower()));
+                    query = query.Where(s =>
+                        EF.Functions.Like(s.Name, $"%{searchTitleOrAddres}%") ||
+                        EF.Functions.Like(s.Location.Address, $"%{searchTitleOrAddres}%"));
                 }
 
-                var sportFild = await query.ToListAsync();
-                _logger.LogInformation("Successfully fetched filtered sportFild");
-                return sportFild;
+                if (date.HasValue && !string.IsNullOrEmpty(startTime) && !string.IsNullOrEmpty(duration))
+                {
+                    if (TimeSpan.TryParse(startTime, out var start) && double.TryParse(duration, out var durationHours))
+                    {
+                        var startDateTime = date.Value.Date + start;
+                        var endDateTime = startDateTime.AddHours(durationHours);
+
+                        query = query.Where(s =>
+                            !s.Bookings.Any(b =>
+                                b.StartTime < endDateTime &&
+                                b.EndTime > startDateTime
+                            )
+                        );
+                    }
+                }
+
+                var result = await query.ToListAsync();
+                _logger.LogInformation("Successfully fetched filtered sport fields");
+                return result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while fetching filtered sport Fild");
+                _logger.LogError(ex, "Error occurred while fetching filtered sport fields");
                 throw;
             }
         }
+
+
+        //public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
+        //{
+        //    _logger.LogInformation("Fetching filtered sportFild");
+        //    try
+        //    {
+        //        var query = _dBContext.SportsFields
+        //            .Include(s => s.Location)
+        //            .Include(s => s.Owner)
+        //            //.Include(s => s.Images)
+        //            .AsNoTracking()
+        //            .AsQueryable();
+
+        //        if (type.HasValue)
+        //        {
+        //            query = query.Where(s => (int)s.Type == type.Value);
+        //        }
+
+        //        if (!string.IsNullOrEmpty(searchTitleOrAddres))
+        //        {
+        //            query = query.Where(s => EF.Functions.Like(s.Name, $"%{searchTitleOrAddres}") || EF.Functions.Like(s.Location.Address, $"%{searchTitleOrAddres}"));
+        //        }
+
+        //        if(date.date)
+
+
+
+        //        var sportFild = await query.ToListAsync();
+        //        _logger.LogInformation("Successfully fetched filtered sportFild");
+        //        return sportFild;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error occurred while fetching filtered sport Fild");
+        //        throw;
+        //    }
+        //}
     }
 }

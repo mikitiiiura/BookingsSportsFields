@@ -18,6 +18,9 @@ namespace BookingsSportsFields.DataAccess.Configurations
                 .IsRequired()
                 .HasMaxLength(255);
 
+            builder.Property(sf => sf.WarningInformation)
+                .HasMaxLength(255);
+
             builder.Property(sf => sf.Type)
                 .IsRequired();
 
@@ -31,6 +34,9 @@ namespace BookingsSportsFields.DataAccess.Configurations
             builder.Property(sf => sf.CreatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
 
+            builder.Property(sf => sf.ImageUrl)
+                .IsRequired();
+
             builder.HasOne(sf => sf.Location)
                 .WithOne(l => l.SportsFields)
                 .HasForeignKey<LocationsEntity>(l => l.SportsFieldId)
@@ -41,9 +47,9 @@ namespace BookingsSportsFields.DataAccess.Configurations
                 .HasForeignKey(sf => sf.OwnerId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            builder.HasMany(sf => sf.Images)
-                .WithOne(img => img.SportsField)
-                .HasForeignKey(img => img.SportsFieldId)
+            builder.HasMany(sf => sf.Bookings)
+                .WithOne(b => b.SportsField)
+                .HasForeignKey(b => b.SportsFieldId)
                 .OnDelete(DeleteBehavior.Cascade);
 
         }

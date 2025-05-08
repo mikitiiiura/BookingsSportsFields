@@ -4,6 +4,7 @@ using BookingsSportsFields.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookingsSportsFields.DataAccess.Migrations
 {
     [DbContext(typeof(BookingsSportsFieldsDBContext))]
-    partial class BookingsSportsFieldsDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250502131334_CreatedNotNormalDB")]
+    partial class CreatedNotNormalDB
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,18 +57,19 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Comment")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETUTCDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("SportsFieldId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SportsFieldsEntityId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("StartTime")
@@ -83,6 +87,8 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("SportsFieldId");
+
+                    b.HasIndex("SportsFieldsEntityId");
 
                     b.HasIndex("UserId");
 
@@ -164,12 +170,10 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("Latitude")
-                        .HasPrecision(18, 9)
-                        .HasColumnType("decimal(18,9)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Longitude")
-                        .HasPrecision(18, 9)
-                        .HasColumnType("decimal(18,9)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid>("SportsFieldId")
                         .HasColumnType("uniqueidentifier");
@@ -252,8 +256,8 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("WarningInformation")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -495,10 +499,14 @@ namespace BookingsSportsFields.DataAccess.Migrations
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.BookingsEntity", b =>
                 {
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", "SportsField")
-                        .WithMany("Bookings")
+                        .WithMany()
                         .HasForeignKey("SportsFieldId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", null)
+                        .WithMany("Bookings")
+                        .HasForeignKey("SportsFieldsEntityId");
 
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.UserEntity", "User")
                         .WithMany()

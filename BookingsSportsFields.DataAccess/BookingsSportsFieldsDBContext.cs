@@ -20,7 +20,7 @@ namespace BookingsSportsFields.DataAccess
         public DbSet<LocationsEntity> Locations { get; set; }
         public DbSet<ReviewsEntity> Reviews { get; set; }
         public DbSet<SportsFieldsEntity> SportsFields { get; set; }
-        public DbSet<SportsFieldImageEntity> SportsFieldImages { get; set; }
+        //public DbSet<SportsFieldImageEntity> SportsFieldImages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,7 +32,7 @@ namespace BookingsSportsFields.DataAccess
             modelBuilder.ApplyConfiguration(new InvitationsConfiguration());
             modelBuilder.ApplyConfiguration(new LocationsConfiguration());
             modelBuilder.ApplyConfiguration(new ReviewsConfiguration());
-            modelBuilder.ApplyConfiguration(new SportsFieldImageConfiguration());
+            //modelBuilder.ApplyConfiguration(new SportsFieldImageConfiguration());
             modelBuilder.ApplyConfiguration(new SportsFieldsConfiguration());
             //modelBuilder.ApplyConfiguration(new UserConfiguration());
 

@@ -5,7 +5,7 @@ using System;
 
 namespace BookingsSportsFields.DataAccess.Repositories
 {
-    public class LocationsRepository
+    public class LocationsRepository : ILocationsRepository
     {
         private readonly BookingsSportsFieldsDBContext _dBContext;
         private readonly ILogger _logger;

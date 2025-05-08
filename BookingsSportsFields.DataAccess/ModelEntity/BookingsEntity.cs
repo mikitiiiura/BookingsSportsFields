@@ -10,6 +10,10 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// </summary>
         public Guid Id { get; set; }
         /// <summary>
+        /// Коментар до бронювання
+        /// </summary>
+        public string? Comment { get; set; }
+        /// <summary>
         /// Час початку бронювання
         /// </summary>
         public DateTime StartTime { get; set; }

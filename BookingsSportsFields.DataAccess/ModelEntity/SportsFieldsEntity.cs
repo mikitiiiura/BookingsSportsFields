@@ -14,6 +14,10 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// </summary>
         public string Name { get; set; } = string.Empty;
         /// <summary>
+        /// Певна важлива інформація для користувачів
+        /// </summary>
+        public string? WarningInformation {  get; set; }
+        /// <summary>
         /// Тип спорту(футбол, теніс, баскетбол тощо)
         /// </summary>
         public SportFieldsType Type { get; set; }
@@ -49,6 +53,8 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// <summary>
         /// зображення майданчика
         /// </summary>
-        public List<SportsFieldImageEntity> Images { get; set; } = [];
+        public string ImageUrl { get; set; } = null!;
+
+        public List<BookingsEntity> Bookings { get; set; } = [];
     }
 }

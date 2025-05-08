@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BookingsSportsFields.Core\BookingsSportsFields.Core.csproj" />
+    <ProjectReference Include="..\BookingsSportsFields.DataAccess\BookingsSportsFields.DataAccess.csproj" />
   </ItemGroup>
 
 </Project>
