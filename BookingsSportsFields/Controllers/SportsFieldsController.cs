@@ -12,7 +12,7 @@ namespace BookingsSportsFields.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
+  
     public class SportsFieldsController : ControllerBase
     {
         //private readonly IMediator _mediator;
@@ -41,9 +41,9 @@ namespace BookingsSportsFields.Controllers
         }
 
         [HttpGet("FilteredSportFild")]
-        public async Task<ActionResult<List<SportsFieldResponce>>> GetFilteredSportFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
+        public async Task<ActionResult<List<SportsFieldResponce>>> GetFilteredSportFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city)
         {
-            var sportfild = await _sportFildService.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration);
+            var sportfild = await _sportFildService.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration, city);
             if (sportfild == null || !sportfild.Any())
             {
                 return NotFound();

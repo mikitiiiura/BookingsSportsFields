@@ -23,7 +23,11 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// <summary>
         /// Дата додавання
         /// </summary>
-        public DateTime CreatedAt { get; set; } 
+        public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// Місто знаходження 
+        /// </summary>
+        public string City { get; set; } = string.Empty;
         /// <summary>
         /// Ідентифікатор спотртивного майданчика
         /// </summary>

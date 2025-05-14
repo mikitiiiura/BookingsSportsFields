@@ -27,9 +27,9 @@ namespace BookingsSportsFields.Application.Services
             return await _sportsFieldsRepository.GetAll();
         }
 
-        public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
+        public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city)
         {
-            return await _sportsFieldsRepository.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration);
+            return await _sportsFieldsRepository.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration, city);
         }
     }
 }

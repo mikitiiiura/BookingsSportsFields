@@ -100,7 +100,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
         /// <param name="search"></param>
         /// <param name="type"></param>
         /// <returns></returns>
-        public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
+        public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city)
         {
             _logger.LogInformation("Fetching filtered sport fields");
             try
@@ -122,6 +122,11 @@ namespace BookingsSportsFields.DataAccess.Repositories
                     query = query.Where(s =>
                         EF.Functions.Like(s.Name, $"%{searchTitleOrAddres}%") ||
                         EF.Functions.Like(s.Location.Address, $"%{searchTitleOrAddres}%"));
+                }
+
+                if (!string.IsNullOrEmpty(city))
+                {
+                    query = query.Where(s => s.Location.City.ToLower() == city.ToLower());
                 }
 
                 if (date.HasValue && !string.IsNullOrEmpty(startTime) && !string.IsNullOrEmpty(duration))

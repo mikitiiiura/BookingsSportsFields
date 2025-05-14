@@ -10,6 +10,6 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         //Task<List<SportsFieldsEntity>> GetFilteredFild(string? search, string? type);
         Task Update(SportsFieldsEntity sportsFilds);
 
-        Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration);
+        Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city);
     }
 }

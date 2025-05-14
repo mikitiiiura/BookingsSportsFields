@@ -37,18 +37,20 @@ builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailS
 
 
 builder.Services.AddScoped<ISportsFieldsRepository, SportsFieldsRepository>();
+builder.Services.AddScoped<IBookingsRepository, BookingsRepository>();
 
 builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddScoped<ISportFildService, SportFildService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy.WithOrigins("http://localhost:5173") // Дозволяє твоєму React-додатку робити запити Важливо без /
                         .AllowAnyHeader()
-                        .AllowAnyMethod());
-                        //.AllowCredentials()); // Якщо використовуєш аутентифікацію через cookies
-}); ;
+                        .AllowAnyMethod()//);
+                        .AllowCredentials()); // Якщо використовуєш аутентифікацію через cookies
+}); 
 
 var app = builder.Build();
 

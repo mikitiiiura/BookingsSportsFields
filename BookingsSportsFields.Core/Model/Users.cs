@@ -25,6 +25,7 @@ namespace BookingsSportsFields.Core.Model
 
     public enum UserRole
     {
+        Guest = 0,
         User = 1,
         AdminSportsFields = 2,
         Admin = 3

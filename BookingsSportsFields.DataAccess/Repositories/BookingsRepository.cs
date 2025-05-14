@@ -44,25 +44,46 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<BookingsEntity>> GetAllByID(Guid userId)
+
+        public async Task<List<BookingsEntity>> GetAllByUserID(Guid userId)
         {
             _logger.LogInformation("Fetching bookings with User ID: {UserId}", userId);
             return await _dBContext.Bookings
                 .Where(b => b.UserId == userId)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
+                    .ThenInclude(sf => sf.Location) // Додаємо включення Location
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        //public async Task Add(BookingsEntity bookings)
-        //{
-        //    _logger.LogInformation("Adding new bookings: {BookingsId}", bookings.Id);
-        //    await _dBContext.Bookings.AddAsync(bookings);
-        //    await _dBContext.SaveChangesAsync();
-        //}
+        
 
-        public async Task Add(BookingsEntity bookings)
+        public async Task<Guid> AddAsync(BookingsEntity bookings)
+        {
+            _logger.LogInformation("Adding new booking: {BookingsId}", bookings.Id);
+
+            // Перевірка доступності
+            bool isAvailable = await IsFieldAvailable(bookings.SportsFieldId, bookings.StartTime, bookings.EndTime);
+
+            if (!isAvailable)
+            {
+                _logger.LogWarning("Field is not available for booking ID: {BookingsId}", bookings.Id);
+                throw new Exception("The field is not available at the requested time");
+            }
+
+            await _dBContext.Bookings.AddAsync(bookings);
+            await _dBContext.SaveChangesAsync();
+            return bookings.Id;
+        }
+
+        /// <summary>
+        /// NewerUse
+        /// </summary>
+        /// <param name="bookings"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public async Task AddWithOutIdentityUser(BookingsEntity bookings)
         {
             _logger.LogInformation("Adding new booking: {BookingsId}", bookings.Id);
 
@@ -84,7 +105,6 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _logger.LogInformation("Fetching available time slots for SportsField ID: {SportsFieldId} on {Date}",
                 sportsFieldId, date.Date);
 
-            // Отримуємо всі бронювання для цього майданчика в вказаний день
             var bookings = await _dBContext.Bookings
                 .Where(b => b.SportsFieldId == sportsFieldId &&
                            b.StartTime.Date == date.Date &&
@@ -93,10 +113,9 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Стандартні години роботи (можна зробити налаштовуваними)
-            TimeSpan openingTime = new TimeSpan(8, 0, 0); // 8:00
+            TimeSpan openingTime = new TimeSpan(8, 0, 0);  // 8:00
             TimeSpan closingTime = new TimeSpan(22, 0, 0); // 22:00
-            TimeSpan slotDuration = new TimeSpan(0, 30, 0); // 30 хвилин
+            TimeSpan slotDuration = new TimeSpan(0, 30, 0); // 30 хв
 
             List<TimeSlot> availableSlots = new List<TimeSlot>();
             DateTime currentSlotStart = date.Date.Add(openingTime);
@@ -105,23 +124,19 @@ namespace BookingsSportsFields.DataAccess.Repositories
             {
                 DateTime currentSlotEnd = currentSlotStart.Add(slotDuration);
 
-                bool isSlotAvailable = true;
-
-                // Перевіряємо накладення з існуючими бронюваннями
-                foreach (var booking in bookings)
-                {
-                    if ((currentSlotStart >= booking.StartTime && currentSlotStart < booking.EndTime) ||
-                        (currentSlotEnd > booking.StartTime && currentSlotEnd <= booking.EndTime) ||
-                        (currentSlotStart <= booking.StartTime && currentSlotEnd >= booking.EndTime))
-                    {
-                        isSlotAvailable = false;
-                        break;
-                    }
-                }
+                bool isSlotAvailable = !bookings.Any(b =>
+                    (currentSlotStart >= b.StartTime && currentSlotStart < b.EndTime) ||
+                    (currentSlotEnd > b.StartTime && currentSlotEnd <= b.EndTime) ||
+                    (currentSlotStart <= b.StartTime && currentSlotEnd >= b.EndTime)
+                );
 
                 if (isSlotAvailable)
                 {
-                    availableSlots.Add(new TimeSlot { StartTime = currentSlotStart, EndTime = currentSlotEnd });
+                    availableSlots.Add(new TimeSlot
+                    {
+                        StartTime = currentSlotStart,
+                        EndTime = currentSlotEnd
+                    });
                 }
 
                 currentSlotStart = currentSlotEnd;
@@ -129,6 +144,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
             return availableSlots;
         }
+
 
         public class TimeSlot
         {
@@ -173,28 +189,6 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _dBContext.Bookings.Update(existingBooking);
             await _dBContext.SaveChangesAsync();
         }
-        //public async Task Update(BookingsEntity bookings)
-        //{
-        //    _logger.LogInformation("Updating booking with ID: {BookingId}", bookings.Id);
-        //    var existingBooking = await _dBContext.Bookings.FirstOrDefaultAsync(b => b.Id == bookings.Id);
-
-        //    if (existingBooking == null)
-        //    {
-        //        _logger.LogWarning("Booking with ID {BookingId} not found", bookings.Id);
-        //        throw new Exception("Booking not found");
-        //    }
-
-        //    existingBooking.StartTime = bookings.StartTime;
-        //    existingBooking.EndTime = bookings.EndTime;
-        //    existingBooking.Status = bookings.Status;
-        //    existingBooking.TotalPrice = bookings.TotalPrice;
-        //    existingBooking.CreatedAt = bookings.CreatedAt;
-        //    existingBooking.UserId = bookings.UserId;
-        //    existingBooking.SportsFieldId = bookings.SportsFieldId;
-
-        //    _dBContext.Bookings.Update(existingBooking);
-        //    await _dBContext.SaveChangesAsync();
-        //}
 
         public async Task Delete(Guid id)
         {
@@ -224,6 +218,8 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _dBContext.Entry(existingBooking).Property(x => x.Status).IsModified = true; //перевірити----------------------------
             await _dBContext.SaveChangesAsync();
         }
+
+        
 
     }
 
