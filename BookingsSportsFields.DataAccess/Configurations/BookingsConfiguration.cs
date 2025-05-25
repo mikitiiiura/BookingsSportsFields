@@ -27,5 +27,11 @@ public class BookingsConfiguration : IEntityTypeConfiguration<BookingsEntity>
             .WithMany(s => s.Bookings)
             .HasForeignKey(b => b.SportsFieldId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(b => b.Reviews)
+            .WithOne()
+            .HasForeignKey<BookingsEntity>(b => b.ReviewsId)
+            .IsRequired(false)  // Робимо зв'язок необов'язковим
+            .OnDelete(DeleteBehavior.ClientSetNull);
     }
 }

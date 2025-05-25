@@ -6,6 +6,7 @@ using BookingsSportsFields.DataAccess.ModelEntity;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
 
 namespace BookingsSportsFields.Controllers
@@ -52,11 +53,21 @@ namespace BookingsSportsFields.Controllers
             return Ok(responce);
         }
 
+        public record FilterModel
+        {
+            [Range(0, 6, ErrorMessage = "Тип спорту повинен бути від 0 до 6.")]
+            public int? type { get; init; }
 
+            public string? searchTitleOrAddres { get; init; }
 
-        //[HttpGet]
-        //public async Task<ActionResult<SportsFieldsEntity>> FilteredSportFild()
+            [DataType(DataType.Date)]
+            public DateTime? date { get; init; }
 
+            public string? startTime { get; init; }
 
+            public string? duration { get; init; }
+
+            public string? city { get; init; }
+        }
     }
 }

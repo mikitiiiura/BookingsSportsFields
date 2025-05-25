@@ -49,5 +49,9 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// Спортивний майданчик
         /// </summary>
         public SportsFieldsEntity SportsField { get; set; } = null!; 
+
+        public Guid? ReviewsId { get; set; }
+
+        public ReviewsEntity? Reviews{ get; set; } = null!;
     }
 }

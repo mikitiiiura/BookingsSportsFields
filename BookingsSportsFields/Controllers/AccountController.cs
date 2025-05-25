@@ -94,7 +94,6 @@ public class AccountController : ControllerBase
         if (!isPasswordValid)
             return Unauthorized(new { Message = "Invalid email or password" });
 
-        // Тут ти можеш повертати токен або просто userId (залежно від того, як реалізована автентифікація)
         return Ok(new
         {
             Message = "Login successful",
@@ -120,7 +119,6 @@ public class AccountController : ControllerBase
             return BadRequest(new { Errors = errors });
         }
 
-
         // Перевірка, чи існує користувач з таким email
         var existingUser = await _userManager.FindByEmailAsync(model.Email);
         if (existingUser != null)
@@ -135,7 +133,6 @@ public class AccountController : ControllerBase
             PhoneNumber = model.PhoneNumber,
             Role = UserRole.User,
             CreatedAt = DateTime.UtcNow,
-            //UserCode = GenerateUserCode()
         };
 
         // Створення користувача
@@ -144,16 +141,6 @@ public class AccountController : ControllerBase
         if (!result.Succeeded)
             return BadRequest(result.Errors);
 
-        //// Перевірка та створення ролі, якщо її немає
-        //var roleName = model.Role.ToString();
-        //if (!await _roleManager.RoleExistsAsync(roleName))
-        //{
-        //    await _roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
-        //}
-
-        //// Додавання ролі користувачу
-        //await _userManager.AddToRoleAsync(user, roleName);
-
         return Ok(new
         {
             Message = "User registered successfully",
@@ -161,6 +148,16 @@ public class AccountController : ControllerBase
             UserCode = user.UserCode
         });
     }
+
+    //// Перевірка та створення ролі, якщо її немає
+    //var roleName = model.Role.ToString();
+    //if (!await _roleManager.RoleExistsAsync(roleName))
+    //{
+    //    await _roleManager.CreateAsync(new IdentityRole<Guid>(roleName));
+    //}
+
+    //// Додавання ролі користувачу
+    //await _userManager.AddToRoleAsync(user, roleName);
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetUserById(Guid id)
