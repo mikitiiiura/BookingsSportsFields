@@ -58,7 +58,9 @@ namespace BookingsSportsFields.Application.Services
         /// <returns></returns>
         public async Task<Guid> CreateBookingAsync(CreateBookingRequest request)
         {
-            var endTime = request.StartTime.AddMinutes(request.DurationMinutes);
+
+            var startTime = DateTime.SpecifyKind(request.StartTime, DateTimeKind.Utc);
+            var endTime = startTime.AddMinutes(request.DurationMinutes);
 
             var booking = new BookingsEntity
             {
