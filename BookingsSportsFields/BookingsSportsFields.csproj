@@ -28,4 +28,8 @@
     <ProjectReference Include="..\BookingsSportsFields.DataAccess\BookingsSportsFields.DataAccess.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\CRMSystem\" />
+  </ItemGroup>
+
 </Project>

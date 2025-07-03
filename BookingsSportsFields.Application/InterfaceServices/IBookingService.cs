@@ -15,5 +15,12 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task<List<BookingsEntity>> GetBookingByUser(Guid userId);
 
         Task DeleteBooking(Guid bookingId);
+        Task DeleteOldBookingsAsync(DateTime thresholdDate);
+        Task<Guid> CancellationBooking(Guid bookingId);
+
+        Task<List<BookingsEntity>> GetAllBookingsByFiltered(Guid ownerId, int? status, DateTime? date,
+            string? titleOfSportFild);
+
+
     }
 }

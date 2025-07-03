@@ -102,6 +102,86 @@ public class AccountController : ControllerBase
             FullName = user.FullName
         });
     }
+    
+    [HttpPost("login-crm")]
+    public async Task<IActionResult> LoginCRM([FromBody] LoginModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return BadRequest(new { Errors = errors });
+        }
+
+        // Знайти користувача по email
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user == null)
+            return Unauthorized(new { Message = "Invalid email or password" });
+
+        // Перевірка пароля
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, model.Password);
+        if (!isPasswordValid)
+            return Unauthorized(new { Message = "Invalid email or password" });
+        
+        // Перевірка ролі адміністратора спортивних майданчиків
+        if (user.Role != UserRole.AdminSportsFields)
+            return Unauthorized(new { Message = "Access denied. User is not an AdminSportsFields." });
+        
+        return Ok(new
+        {
+            Message = "Login successful",
+            UserId = user.Id,
+            UserCode = user.UserCode,
+            FullName = user.FullName
+        });
+    }
+    
+    // POST: api/Account/registerCRM
+    [HttpPost("register-crm")]
+    public async Task<IActionResult> RegisterCRM([FromBody] RegisterModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+
+            return BadRequest(new { Errors = errors });
+        }
+
+        // Перевірка, чи існує користувач з таким email
+        var existingUser = await _userManager.FindByEmailAsync(model.Email);
+        if (existingUser != null)
+            return BadRequest(new { Message = "User(AdminSportFild) with this email already exists" });
+
+        // Створення нового користувача
+        var user = new UserEntity
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            FullName = model.FullName,
+            PhoneNumber = model.PhoneNumber,
+            Role = UserRole.AdminSportsFields,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        // Створення користувача
+        var result = await _userManager.CreateAsync(user, model.Password);
+
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(new
+        {
+            Message = "User registered successfully",
+            UserId = user.Id,
+            UserCode = user.UserCode
+        });
+    }
 
 
 

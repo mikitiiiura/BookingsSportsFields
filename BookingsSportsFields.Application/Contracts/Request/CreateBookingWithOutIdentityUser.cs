@@ -10,33 +10,6 @@ using System.Threading.Tasks;
 
 namespace BookingsSportsFields.Application.Contracts.Request
 {
-    //public record CreateBookingWithOutIdentityUser
-    //(
-    //    [Required(ErrorMessage = "SportFild id is required.")]
-    //    Guid SportFildId,
-
-    //    [StringLength(255, ErrorMessage = "Comment cannot be longer than 255 characters.")]
-    //    string? Comment,
-
-    //    [Required(ErrorMessage = "StartTime is required.")]
-    //    DateTime StartTime,
-
-    //    //[Required(ErrorMessage = "EndTime is required.")]
-    //    //DateTime EndTime,
-
-    //    [Required(ErrorMessage = "EndTime is required.")]
-    //    DateTime EndTime,
-
-    //    [Range(0, 3, ErrorMessage = "Priority must be between 0 and 3.")]
-    //    int Status,
-
-    //    [Required(ErrorMessage = "TotalPrice is required.")]
-    //    decimal TotalPrice,
-
-    //    Guid UserId
-
-
-    //);
     public record CreateBookingRequest
     (
     [Required] Guid SportFieldId,

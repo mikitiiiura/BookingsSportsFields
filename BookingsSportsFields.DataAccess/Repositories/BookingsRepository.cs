@@ -33,7 +33,11 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
             return !conflictingBookings;
         }
-
+        
+        /// <summary>
+        /// We will delete this method but it is for test
+        /// </summary>
+        /// <returns>List BookingsEntity</returns>
         public async Task<List<BookingsEntity>> GetAll()
         {
             _logger.LogInformation("Fetching all bookings");
@@ -44,20 +48,18 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .ToListAsync();
         }
 
-
         public async Task<List<BookingsEntity>> GetAllByUserID(Guid userId)
         {
             _logger.LogInformation("Fetching bookings with User ID: {UserId}", userId);
             return await _dBContext.Bookings
                 .Where(b => b.UserId == userId)
+                .Where(b => b.Status != BookingStatus.Cancelled)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
                     .ThenInclude(sf => sf.Location) // Додаємо включення Location
                 .AsNoTracking()
                 .ToListAsync();
         }
-
-        
 
         public async Task<Guid> AddAsync(BookingsEntity bookings)
         {
@@ -76,6 +78,43 @@ namespace BookingsSportsFields.DataAccess.Repositories
             await _dBContext.SaveChangesAsync();
             return bookings.Id;
         }
+        
+        public async Task DeleteBookingsOlderThanAsync(DateTime thresholdDate)
+        {
+            _logger.LogInformation("Deleting bookings older than {ThresholdDate}", thresholdDate);
+
+            var oldBookings = await _dBContext.Bookings
+                .Where(b => b.EndTime < thresholdDate)
+                .ToListAsync();
+
+            if (oldBookings.Any())
+            {
+                _dBContext.Bookings.RemoveRange(oldBookings);
+                await _dBContext.SaveChangesAsync();
+                _logger.LogInformation("Deleted {Count} old bookings", oldBookings.Count);
+            }
+            else
+            {
+                _logger.LogInformation("No old bookings to delete");
+            }
+        }
+
+        public async Task<Guid> CancellationBooking(Guid bookingId)
+        {
+            _logger.LogInformation("Set cancel status for bookings with id: {BookingId}", bookingId);
+
+            var bookingChanged = await _dBContext.Bookings
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+            if (bookingChanged == null)
+                throw new Exception("Бронювання не знайдено");
+
+            bookingChanged.Status = BookingStatus.Cancelled;
+            await _dBContext.SaveChangesAsync();
+            return bookingChanged.Id;
+        }
+
+
 
         /// <summary>
         /// NewerUse
@@ -99,7 +138,12 @@ namespace BookingsSportsFields.DataAccess.Repositories
             await _dBContext.Bookings.AddAsync(bookings);
             await _dBContext.SaveChangesAsync();
         }
-
+        /// <summary>
+        /// Get Available Time Slots
+        /// </summary>
+        /// <param name="sportsFieldId"></param>
+        /// <param name="date"></param>
+        /// <returns></returns>
         public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date)
         {
             _logger.LogInformation("Fetching available time slots for SportsField ID: {SportsFieldId} on {Date}",
@@ -218,7 +262,49 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _dBContext.Entry(existingBooking).Property(x => x.Status).IsModified = true; //перевірити----------------------------
             await _dBContext.SaveChangesAsync();
         }
+        
+        public async Task<List<BookingsEntity>> GetFilteredBookingsCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild)
+        {
+            _logger.LogInformation("Fetching filtered booking for owner ID: {OwnerId}", ownerId);
+            try
+            {
+                var query =  _dBContext.Bookings
+                    .Include(b => b.SportsField)
+                    .ThenInclude(s => s.Owner)
+                    .Include(b => b.User)
+                    .Where(b => b.SportsField.OwnerId == ownerId)
+                    .AsNoTracking()
+                    .AsQueryable();
+                
+                if (string.IsNullOrWhiteSpace(titleOfSportFild))
+                {
+                    query = query.Where(b=>EF.Functions.Like(b.SportsField.Name, $"%{titleOfSportFild}%"));
+                }
+                if (status.HasValue)
+                {
+                    query = query.Where(b => (int)b.Status == status.Value);
+                }
 
+                if (date.HasValue)
+                {
+                    var dayStart = date.Value.Date;
+                    var dayEnd = dayStart.AddDays(1);
+
+                    query = query.Where(b => b.StartTime >= dayStart && b.StartTime < dayEnd);
+                }
+
+                
+                var bookings = await query.ToListAsync();
+                return bookings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while fetching filtered tasks for user ID: {OwnerId}", ownerId);
+                throw;
+            }
+            
+                
+        }
         
 
     }

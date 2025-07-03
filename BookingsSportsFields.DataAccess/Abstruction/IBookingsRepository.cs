@@ -15,5 +15,10 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task<bool> IsFieldAvailable(Guid sportsFieldId, DateTime startTime, DateTime endTime);
         Task Update(BookingsEntity bookings);
         Task UpdateStatus(Guid id, BookingStatus status);
+        Task DeleteBookingsOlderThanAsync(DateTime thresholdDate);
+        Task<Guid> CancellationBooking(Guid bookingId);
+        Task<List<BookingsEntity>> GetFilteredBookingsCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild);
+        
+
     }
 }

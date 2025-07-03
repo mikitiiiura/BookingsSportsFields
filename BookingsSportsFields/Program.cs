@@ -43,10 +43,11 @@ builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddScoped<ISportFildService, SportFildService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
-        policy => policy.WithOrigins("http://localhost:5173") // Дозволяє твоєму React-додатку робити запити Важливо без /
+        policy => policy.WithOrigins("http://localhost:5173", "http://localhost:5000", "http://192.168.0.103:5000") // Дозволяє твоєму React-додатку робити запити Важливо без /
                         .AllowAnyHeader()
                         .AllowAnyMethod()//);
                         .AllowCredentials()); // Якщо використовуєш аутентифікацію через cookies

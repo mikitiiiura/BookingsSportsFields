@@ -128,6 +128,25 @@ namespace BookingsSportsFields.Application.Services
             DateTime endTime = startTime.AddMinutes(durationMinutes);
             return await _bookingsRepository.IsFieldAvailable(sportsFieldId, startTime, endTime);
         }
+        public async Task DeleteOldBookingsAsync(DateTime thresholdDate)
+        {
+            _logger.LogInformation("Deleting old bookings older than {ThresholdDate}", thresholdDate);
+            await _bookingsRepository.DeleteBookingsOlderThanAsync(thresholdDate);
+        }
+        
+        public async Task<Guid> CancellationBooking(Guid bookingId)
+        {
+            _logger.LogInformation("Set cancel status for bookings with id: {BookingId}", bookingId);
+            return await _bookingsRepository.CancellationBooking(bookingId);
+        }
+
+        public async Task<List<BookingsEntity>> GetAllBookingsByFiltered(Guid ownerId, int? status, DateTime? date,
+            string? titleOfSportFild)
+        {
+            _logger.LogInformation("Getting all bookings for owner ID: {OwnerId}", ownerId);
+            return await _bookingsRepository.GetFilteredBookingsCRM(ownerId, status, date, titleOfSportFild);
+        }
+        
 
     }
 }

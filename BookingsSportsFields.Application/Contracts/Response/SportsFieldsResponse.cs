@@ -58,7 +58,9 @@ namespace BookingsSportsFields.Application.Contracts.Response
     public record UserDto
         (
         Guid Id,
-        string Name
+        string Name,
+        string Email,
+        string PhoneNumber
         );
 
     public record SportsFieldDto
@@ -89,7 +91,7 @@ namespace BookingsSportsFields.Application.Contracts.Response
                 bookings.Status,
                 bookings.TotalPrice,
                 bookings.CreatedAt,
-                bookings.User != null ? new UserDto(bookings.User.Id, bookings.User.FullName) : null!,
+                bookings.User != null ? new UserDto(bookings.User.Id, bookings.User.FullName, bookings.User.Email, bookings.User.PhoneNumber) : null!,
                 bookings.SportsField != null ? new SportsFieldResponce
             (
                     bookings.SportsField.Id,
