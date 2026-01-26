@@ -14,6 +14,10 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// </summary>
         public string? Comment { get; set; }
         /// <summary>
+        /// Вид спорту
+        /// </summary>
+        public SportFieldsType SportType  { get; set; }
+        /// <summary>
         /// Час початку бронювання
         /// </summary>
         public DateTime StartTime { get; set; }

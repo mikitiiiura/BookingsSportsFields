@@ -11,6 +11,8 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task CreateBookingWithOutIdentityUser(BookingsEntity bookingsEntity);
         Task<Guid> CreateGuestBookingAsync(CreateGuestBookingRequest request);
         Task<List<BookingsEntity>> GetAllBooking();
+        
+        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date);
         Task<List<BookingsRepository.TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date);
         Task<List<BookingsEntity>> GetBookingByUser(Guid userId);
 
@@ -18,7 +20,7 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task DeleteOldBookingsAsync(DateTime thresholdDate);
         Task<Guid> CancellationBooking(Guid bookingId);
 
-        Task<List<BookingsEntity>> GetAllBookingsByFiltered(Guid ownerId, int? status, DateTime? date,
+        Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date,
             string? titleOfSportFild);
 
 

@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BookingsSportsFields.DataAc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookingsSportsFields.Application", "BookingsSportsFields.Application\BookingsSportsFields.Application.csproj", "{B933C77E-004F-465E-8A53-DB70CEC30232}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookingsSportsFields.Test", "BookingsSportsFields.Test\BookingsSportsFields.Test.csproj", "{2799A335-0B27-4705-9F3A-7BE51EB7E563}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{B933C77E-004F-465E-8A53-DB70CEC30232}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B933C77E-004F-465E-8A53-DB70CEC30232}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B933C77E-004F-465E-8A53-DB70CEC30232}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2799A335-0B27-4705-9F3A-7BE51EB7E563}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2799A335-0B27-4705-9F3A-7BE51EB7E563}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2799A335-0B27-4705-9F3A-7BE51EB7E563}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2799A335-0B27-4705-9F3A-7BE51EB7E563}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

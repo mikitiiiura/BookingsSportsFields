@@ -44,6 +44,31 @@ namespace BookingsSportsFields.DataAccess.Repositories
             return await _dBContext.Bookings
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
+                .ThenInclude(sf => sf.Location)
+                .Include(b => b.SportsField)
+                .ThenInclude(sf => sf.Owner)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+        
+        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date)
+        {
+            _logger.LogInformation("Fetching all bookings for manager to sport field by date");
+    
+            // Отримуємо початок і кінець дня
+            var startOfDay = date.Date; // 00:00:00
+            var endOfDay = date.Date.AddDays(1).AddTicks(-1); // 23:59:59.999
+    
+            return await _dBContext.Bookings
+                .Where(b => b.UserId == userId && 
+                            b.SportsFieldId == sportField &&
+                            b.StartTime <= endOfDay && 
+                            b.EndTime >= startOfDay)
+                .Include(b => b.User)
+                .Include(b => b.SportsField)
+                // .ThenInclude(sf => sf.Location)
+                .Include(b => b.SportsField)
+                .ThenInclude(sf => sf.Owner)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -51,12 +76,15 @@ namespace BookingsSportsFields.DataAccess.Repositories
         public async Task<List<BookingsEntity>> GetAllByUserID(Guid userId)
         {
             _logger.LogInformation("Fetching bookings with User ID: {UserId}", userId);
+
             return await _dBContext.Bookings
-                .Where(b => b.UserId == userId)
-                .Where(b => b.Status != BookingStatus.Cancelled)
+                .Where(b => b.UserId == userId && b.Status != BookingStatus.Cancelled)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
-                    .ThenInclude(sf => sf.Location) // Додаємо включення Location
+                .ThenInclude(sf => sf.Location)
+                .Include(b => b.SportsField)
+                // .ThenInclude(sf => sf.TypesWithDetails)
+                // .ThenInclude(t => t.WeeklySchedules)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -114,6 +142,10 @@ namespace BookingsSportsFields.DataAccess.Repositories
             return bookingChanged.Id;
         }
 
+        public Task<List<BookingsEntity>> GetFilteredBookingsCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild)
+        {
+            throw new NotImplementedException();
+        }
 
 
         /// <summary>
@@ -262,8 +294,12 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _dBContext.Entry(existingBooking).Property(x => x.Status).IsModified = true; //перевірити----------------------------
             await _dBContext.SaveChangesAsync();
         }
-        
-        public async Task<List<BookingsEntity>> GetFilteredBookingsCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild)
+
+
+        /// <summary>
+        /// Get reserved reservations for the field owner/admin
+        /// </summary>
+        public async Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild)
         {
             _logger.LogInformation("Fetching filtered booking for owner ID: {OwnerId}", ownerId);
             try
@@ -271,18 +307,19 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 var query =  _dBContext.Bookings
                     .Include(b => b.SportsField)
                     .ThenInclude(s => s.Owner)
-                    .Include(b => b.User)
                     .Where(b => b.SportsField.OwnerId == ownerId)
+                    //.Include(b => b.User)
                     .AsNoTracking()
                     .AsQueryable();
                 
-                if (string.IsNullOrWhiteSpace(titleOfSportFild))
+                if (!string.IsNullOrWhiteSpace(titleOfSportFild))
                 {
                     query = query.Where(b=>EF.Functions.Like(b.SportsField.Name, $"%{titleOfSportFild}%"));
                 }
                 if (status.HasValue)
                 {
-                    query = query.Where(b => (int)b.Status == status.Value);
+                    // query = query.Where(b => (int)b.Status == status.Value);
+                    query = query.Where(b => b.Status == (BookingStatus)status.Value);
                 }
 
                 if (date.HasValue)
@@ -305,6 +342,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
             
                 
         }
+        
         
 
     }

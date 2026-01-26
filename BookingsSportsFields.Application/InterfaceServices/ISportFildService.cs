@@ -6,7 +6,10 @@ namespace BookingsSportsFields.Application.InterfaceServices
     {
         Task<List<SportsFieldsEntity>> GetAll();
 
+        Task<List<SportsFieldsEntity>> GetAllByOwnerID(Guid ownerId);
+
         Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city);
+        Task<SportsFieldsEntity> AddSportsFields(SportsFieldsEntity sportsFields);
 
     }
 }

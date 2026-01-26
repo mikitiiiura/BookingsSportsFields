@@ -14,6 +14,7 @@ namespace BookingsSportsFields.Application.Contracts.Request
     (
     [Required] Guid SportFieldId,
     [StringLength(255)] string? Comment,
+    [Required] SportFieldsType SportType,
     [Required] DateTime StartTime,
     [Required] int DurationMinutes, // Тривалість у хвилинах
     [Required] decimal TotalPrice,
@@ -23,6 +24,7 @@ namespace BookingsSportsFields.Application.Contracts.Request
     (
     [Required] Guid SportFieldId,
     [StringLength(255)] string? Comment,
+    [Required] SportFieldsType SportType,
     [Required] DateTime StartTime,
     [Required] int DurationMinutes,
     [Required] decimal TotalPrice,

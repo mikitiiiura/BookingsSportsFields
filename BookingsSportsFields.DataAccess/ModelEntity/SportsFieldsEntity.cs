@@ -1,5 +1,6 @@
 ﻿using BookingsSportsFields.Core.Model;
 using System;
+using System.Text.Json.Serialization;
 
 namespace BookingsSportsFields.DataAccess.ModelEntity
 {
@@ -13,18 +14,18 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// Назва майданчика
         /// </summary>
         public string Name { get; set; } = string.Empty;
-        /// <summary>
-        /// Певна важлива інформація для користувачів
-        /// </summary>
-        public string? WarningInformation {  get; set; }
-        /// <summary>
-        /// Тип спорту(футбол, теніс, баскетбол тощо)
-        /// </summary>
-        public SportFieldsType Type { get; set; }
-        /// <summary>
-        /// Вартість оренди за годину
-        /// </summary>
-        public double PricePerHour { get; set; }
+        // /// <summary>
+        // /// Певна важлива інформація для користувачів
+        // /// </summary>
+        // public string? WarningInformation {  get; set; }
+        // /// <summary>
+        // /// Тип спорту(футбол, теніс, баскетбол тощо)
+        // /// </summary>
+        // public SportFieldsType Type { get; set; }
+        // /// <summary>
+        // /// Вартість оренди за годину
+        // /// </summary>
+        // public double PricePerHour { get; set; }
         /// <summary>
         /// Опис майданчика
         /// </summary>
@@ -33,10 +34,7 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// Дата додавання
         /// </summary>
         public DateTime CreatedAt { get; set; }
-        /// <summary>
-        /// ID Адреса або GPS-координати
-        /// </summary>
-        public Guid LocationId { get; set; }
+
         /// <summary>
         /// Адреса або GPS-координати
         /// </summary>
@@ -54,7 +52,9 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// зображення майданчика
         /// </summary>
         public string ImageUrl { get; set; } = null!;
-
+        [JsonIgnore]
         public List<BookingsEntity> Bookings { get; set; } = [];
+        
+        public List<SportsFieldSportTypeEntity> TypesWithDetails  { get; set; } = [];
     }
 }

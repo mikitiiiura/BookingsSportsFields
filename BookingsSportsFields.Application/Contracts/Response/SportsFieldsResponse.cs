@@ -8,33 +8,66 @@ using System.Threading.Tasks;
 
 namespace BookingsSportsFields.Application.Contracts.Response
 {
+    public record SportTypeDetailDto
+    (
+        SportFieldsType Type,
+        double PricePerHour,
+        string? WarningInformation,
+        List<WeeklyScheduleDto> WeeklySchedules
+    );
+    public record WeeklyScheduleDto
+    (
+        DayOfWeek DayOfWeek,       // 0 = неділя, 1 = понеділок, і т.д.
+        TimeSpan AvailableFrom, // формат "HH:mm", наприклад "08:00"
+        TimeSpan AvailableTo
+    );
+
+
+    
     public record SportsFieldResponce
     (
         Guid Id,
         string Title,
-        string? WarningInformation,
-        SportFieldsType Type,
-        double PricePerHour,
+        List<SportTypeDetailDto> Types,
         string Description,
         //DateTime CreatedAt,
         string ImageUrl,
-        LocationDto Location
-    //OwnerDto? Owner
+        LocationDto Location,
+        OwnerDto? Owner
     )
     {
         public SportsFieldResponce(SportsFieldsEntity sportsFields) : this
             (
                 sportsFields.Id,
                 sportsFields.Name,
-                sportsFields.WarningInformation,
-                sportsFields.Type,
-                sportsFields.PricePerHour,
+                sportsFields.TypesWithDetails.Select(t => new SportTypeDetailDto(t.Type, t.PricePerHour, t.WarningInformation, t.WeeklySchedules.Select(ws => new WeeklyScheduleDto(ws.DayOfWeek, ws.AvailableFrom, ws.AvailableTo)).ToList()
+                )).ToList(),
                 sportsFields.Description,
                 //sportsFields.CreatedAt,
                 sportsFields.ImageUrl,
-                sportsFields.Location != null ? new LocationDto(sportsFields.Location.Id, sportsFields.Location.Latitude, sportsFields.Location.Longitude, sportsFields.Location.Address, sportsFields.Location.City) : null!
-            //sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!
+                sportsFields.Location != null ? new LocationDto(sportsFields.Location.Id, sportsFields.Location.Latitude, sportsFields.Location.Longitude, sportsFields.Location.Address, sportsFields.Location.City) : null!,
+                sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!
             )
+        {
+        }
+    }
+    
+    
+    public record SportsFieldByUser
+    (
+        Guid Id,
+        string Title,
+        string ImageUrl,
+        OwnerDto? Owner
+    )
+    {
+        public SportsFieldByUser(SportsFieldsEntity sportsFields) : this
+        (
+            sportsFields.Id,
+            sportsFields.Name,
+            sportsFields.ImageUrl,
+            sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!
+        )
         {
         }
     }
@@ -73,6 +106,7 @@ namespace BookingsSportsFields.Application.Contracts.Response
     (
         Guid Id,
         string? Comment,
+        SportFieldsType SportType,
         DateTime StartTime,
         DateTime EndTime,
         BookingStatus Status,
@@ -86,6 +120,7 @@ namespace BookingsSportsFields.Application.Contracts.Response
             (
                 bookings.Id,
                 bookings.Comment,
+                bookings.SportType,
                 bookings.StartTime,
                 bookings.EndTime,
                 bookings.Status,
@@ -96,9 +131,7 @@ namespace BookingsSportsFields.Application.Contracts.Response
             (
                     bookings.SportsField.Id,
                     bookings.SportsField.Name,
-                    bookings.SportsField.WarningInformation,
-                    bookings.SportsField.Type,
-                    bookings.SportsField.PricePerHour,
+                    bookings.SportsField.TypesWithDetails.Select(t =>  new SportTypeDetailDto(t.Type, t.PricePerHour, t.WarningInformation, t.WeeklySchedules.Select(ws => new WeeklyScheduleDto(ws.DayOfWeek, ws.AvailableFrom, ws.AvailableTo)).ToList())).ToList(),
                     bookings.SportsField.Description,
                     bookings.SportsField.ImageUrl,
                     bookings.SportsField.Location != null ? new LocationDto(
@@ -108,7 +141,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
                         bookings.SportsField.Location.Address,
                         bookings.SportsField.Location.City
                     )
-                    : null!
+                    : null!,
+                    bookings.SportsField.Owner != null ? new OwnerDto(bookings.SportsField.Owner.Id, bookings.SportsField.Owner.FullName) : null!
 
                     ) : null!
             )

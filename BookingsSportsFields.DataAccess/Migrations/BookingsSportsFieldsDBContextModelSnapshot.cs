@@ -68,6 +68,9 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Property<Guid?>("ReviewsId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("SportType")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("SportsFieldId")
                         .HasColumnType("uniqueidentifier");
 
@@ -225,6 +228,57 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.ToTable("Reviews", "identity");
                 });
 
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<TimeSpan>("AvailableFrom")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan>("AvailableTo")
+                        .HasColumnType("time");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SportsFieldSportTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SportsFieldSportTypeId");
+
+                    b.ToTable("SportsFieldSchedules", "identity");
+                });
+
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("PricePerHour")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<Guid>("SportsFieldId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<string>("WarningInformation")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SportsFieldId");
+
+                    b.ToTable("SportsFieldSportTypes", "identity");
+                });
+
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -245,9 +299,6 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("LocationId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -255,16 +306,6 @@ namespace BookingsSportsFields.DataAccess.Migrations
 
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("PricePerHour")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<string>("WarningInformation")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
 
                     b.HasKey("Id");
 
@@ -575,6 +616,28 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSchedule", b =>
+                {
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", "SportTypeDetail")
+                        .WithMany("WeeklySchedules")
+                        .HasForeignKey("SportsFieldSportTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SportTypeDetail");
+                });
+
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", b =>
+                {
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", "SportsField")
+                        .WithMany("TypesWithDetails")
+                        .HasForeignKey("SportsFieldId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SportsField");
+                });
+
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", b =>
                 {
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.UserEntity", "Owner")
@@ -636,12 +699,19 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", b =>
+                {
+                    b.Navigation("WeeklySchedules");
+                });
+
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", b =>
                 {
                     b.Navigation("Bookings");
 
                     b.Navigation("Location")
                         .IsRequired();
+
+                    b.Navigation("TypesWithDetails");
                 });
 #pragma warning restore 612, 618
         }

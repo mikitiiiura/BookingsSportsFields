@@ -18,15 +18,15 @@ namespace BookingsSportsFields.DataAccess.Configurations
                 .IsRequired()
                 .HasMaxLength(255);
 
-            builder.Property(sf => sf.WarningInformation)
-                .HasMaxLength(255);
-
-            builder.Property(sf => sf.Type)
-                .IsRequired();
-
-            builder.Property(sf => sf.PricePerHour)
-                .IsRequired()
-                .HasColumnType("decimal(10,2)");
+            // builder.Property(sf => sf.WarningInformation)
+            //     .HasMaxLength(255);
+            //
+            // builder.Property(sf => sf.Type)
+            //     .IsRequired();
+            //
+            // builder.Property(sf => sf.PricePerHour)
+            //     .IsRequired()
+            //     .HasColumnType("decimal(10,2)");
 
             builder.Property(sf => sf.Description)
                 .HasMaxLength(1000);
@@ -50,6 +50,11 @@ namespace BookingsSportsFields.DataAccess.Configurations
             builder.HasMany(sf => sf.Bookings)
                 .WithOne(b => b.SportsField)
                 .HasForeignKey(b => b.SportsFieldId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            builder.HasMany(sf => sf.TypesWithDetails)
+                .WithOne(t => t.SportsField)
+                .HasForeignKey(t => t.SportsFieldId)
                 .OnDelete(DeleteBehavior.Cascade);
 
         }

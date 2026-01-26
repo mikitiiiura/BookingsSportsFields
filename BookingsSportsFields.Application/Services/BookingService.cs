@@ -33,6 +33,12 @@ namespace BookingsSportsFields.Application.Services
             return await _bookingsRepository.GetAll();
         }
 
+        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date)
+        {
+            _logger.LogInformation("Fetching all bookings for sport field by date");
+            return await _bookingsRepository.GetAllBookingsForSportFieldByDate(userId, sportField, date);
+        }
+
         public async Task<List<BookingsEntity>> GetBookingByUser(Guid userId)
         {
             _logger.LogInformation("Feaching Booking by User id: {userId}", userId);
@@ -67,6 +73,7 @@ namespace BookingsSportsFields.Application.Services
                 Id = Guid.NewGuid(),
                 SportsFieldId = request.SportFieldId,
                 Comment = request.Comment,
+                SportType = request.SportType,
                 StartTime = request.StartTime,
                 EndTime = endTime,
                 Status = BookingStatus.Pending,
@@ -107,6 +114,7 @@ namespace BookingsSportsFields.Application.Services
                 Id = Guid.NewGuid(),
                 SportsFieldId = request.SportFieldId,
                 Comment = request.Comment,
+                SportType = request.SportType,
                 StartTime = request.StartTime,
                 EndTime = endTime,
                 Status = BookingStatus.Pending,
@@ -140,11 +148,11 @@ namespace BookingsSportsFields.Application.Services
             return await _bookingsRepository.CancellationBooking(bookingId);
         }
 
-        public async Task<List<BookingsEntity>> GetAllBookingsByFiltered(Guid ownerId, int? status, DateTime? date,
+        public async Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date,
             string? titleOfSportFild)
         {
             _logger.LogInformation("Getting all bookings for owner ID: {OwnerId}", ownerId);
-            return await _bookingsRepository.GetFilteredBookingsCRM(ownerId, status, date, titleOfSportFild);
+            return await _bookingsRepository.GetReservedReservationsForFieldOwnerCRM(ownerId, status, date, titleOfSportFild);
         }
         
 

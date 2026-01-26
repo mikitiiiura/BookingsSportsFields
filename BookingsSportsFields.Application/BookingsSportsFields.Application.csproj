@@ -7,12 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MediatR" Version="14.0.0" />
+    <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
     <PackageReference Include="MimeKit" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BookingsSportsFields.Core\BookingsSportsFields.Core.csproj" />
     <ProjectReference Include="..\BookingsSportsFields.DataAccess\BookingsSportsFields.DataAccess.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Handlers\BookingHendlers\" />
   </ItemGroup>
 
 </Project>

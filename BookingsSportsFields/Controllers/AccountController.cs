@@ -70,6 +70,15 @@ public class AccountController : ControllerBase
             Message = "User is authenticated"
         });
     }
+    
+    public class UpdateUserProfileModel
+    {
+        public Guid IdUser { get; set; }
+        public string? NewEmail { get; set; }
+        public string? NewPhoneNumber { get; set; }
+        public string? NewFullName { get; set; }
+    }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginModel model)
@@ -203,7 +212,7 @@ public class AccountController : ControllerBase
         var existingUser = await _userManager.FindByEmailAsync(model.Email);
         if (existingUser != null)
             return BadRequest(new { Message = "User with this email already exists" });
-
+        
         // Створення нового користувача
         var user = new UserEntity
         {
@@ -239,6 +248,28 @@ public class AccountController : ControllerBase
     //// Додавання ролі користувачу
     //await _userManager.AddToRoleAsync(user, roleName);
 
+    // [HttpPost("change-fullname")]
+    // public async Task<IActionResult> ChangeFullName(Guid userId,  string newFullName)
+    // {
+    //     var user = await _userManager.FindByIdAsync(userId.ToString());
+    //     if (user == null)
+    //         return Unauthorized(new { Message = "User Not Found" });
+    //     user.FullName = newFullName;
+    //     var result = await _userManager.UpdateAsync(user);
+    //     if (!result.Succeeded)
+    //         return BadRequest(result.Errors);
+    //     return Ok(new
+    //     {
+    //         user.Id,
+    //         user.UserCode,
+    //         user.FullName,
+    //         user.Email,
+    //         user.PhoneNumber,
+    //         user.Role,
+    //         user.CreatedAt
+    //     });
+    // }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetUserById(Guid id)
     {
@@ -258,6 +289,132 @@ public class AccountController : ControllerBase
             user.CreatedAt
         });
     }
+    
+    
+    [HttpPost("update-profile")]
+    public async Task<IActionResult> UpdateUserProfile([FromBody] UpdateUserProfileModel model)
+    {
+        var user = await _userManager.FindByIdAsync(model.IdUser.ToString());
+        if (user == null)
+            return NotFound(new { Message = "User not found" });
+
+        bool isModified = false;
+        var changedFields = new List<string>();
+        var unchangedFields = new List<string>();
+
+        // Email
+        if (!string.IsNullOrWhiteSpace(model.NewEmail))
+        {
+            if (user.Email != model.NewEmail)
+            {
+                user.Email = model.NewEmail;
+                changedFields.Add("Email");
+                isModified = true;
+            }
+            else
+            {
+                unchangedFields.Add("Email");
+            }
+        }
+
+        // Phone number
+        if (!string.IsNullOrWhiteSpace(model.NewPhoneNumber))
+        {
+            if (user.PhoneNumber != model.NewPhoneNumber)
+            {
+                user.PhoneNumber = model.NewPhoneNumber;
+                changedFields.Add("PhoneNumber");
+                isModified = true;
+            }
+            else
+            {
+                unchangedFields.Add("PhoneNumber");
+            }
+        }
+
+        // Full name
+        if (!string.IsNullOrWhiteSpace(model.NewFullName))
+        {
+            if (user.FullName != model.NewFullName)
+            {
+                user.FullName = model.NewFullName;
+                changedFields.Add("FullName");
+                isModified = true;
+            }
+            else
+            {
+                unchangedFields.Add("FullName");
+            }
+        }
+
+        if (!isModified)
+        {
+            return Ok(new
+            {
+                Message = "Дані залишились такими, як були — жодних змін не внесено.",
+                UnchangedFields = unchangedFields
+            });
+        }
+
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            return BadRequest(result.Errors);
+
+        return Ok(new
+        {
+            Message = "Дані користувача успішно оновлено.",
+            ChangedFields = changedFields,
+            UnchangedFields = unchangedFields
+        });
+    }
+
+
+    // [HttpPost("change-email")]
+    // public async Task<IActionResult> changreEmail(Guid idUser, string newEmail)
+    // {
+    //     var user = await _userManager.FindByIdAsync(idUser.ToString());
+    //     
+    //     if (user == null)
+    //         return NotFound(new { Message = "User not found" });
+    //     
+    //     user.Email = newEmail;
+    //     var result = await _userManager.UpdateAsync(user);
+    //     if (!result.Succeeded)
+    //         return BadRequest(result.Errors);
+    //     return Ok(idUser);
+    // }
+    //
+    // [HttpPost("change-phone-number")]
+    // public async Task<IActionResult> changrePhoneNumber(Guid idUser, string newPhoneNumber)
+    // {
+    //     var user = await _userManager.FindByIdAsync(idUser.ToString());
+    //     
+    //     if (user == null)
+    //         return NotFound(new { Message = "User not found" });
+    //     
+    //     user.PhoneNumber = newPhoneNumber;
+    //     var result = await _userManager.UpdateAsync(user);
+    //     
+    //     if (!result.Succeeded)
+    //         return BadRequest(result.Errors);
+    //     
+    //     return Ok(idUser);
+    // }
+    //
+    // [HttpPost("change-fullname")]
+    // public async Task<IActionResult> changreFullName(Guid idUser, string newFullName)
+    // {
+    //     var user = await _userManager.FindByIdAsync(idUser.ToString());
+    //     
+    //     if (user == null)
+    //         return NotFound(new { Message = "User not found" });
+    //     
+    //     user.FullName = newFullName;
+    //     var result = await _userManager.UpdateAsync(user);
+    //     if (!result.Succeeded)
+    //         return BadRequest(result.Errors);
+    //     return Ok(idUser);
+    // }
 
 
 }

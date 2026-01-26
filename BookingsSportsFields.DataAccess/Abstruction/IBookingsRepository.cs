@@ -10,6 +10,8 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task AddWithOutIdentityUser(BookingsEntity bookings);
         Task Delete(Guid id);
         Task<List<BookingsEntity>> GetAll();
+        
+        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date);
         Task<List<BookingsEntity>> GetAllByUserID(Guid userId);
         Task<List<BookingsRepository.TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date);
         Task<bool> IsFieldAvailable(Guid sportsFieldId, DateTime startTime, DateTime endTime);
@@ -17,7 +19,7 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task UpdateStatus(Guid id, BookingStatus status);
         Task DeleteBookingsOlderThanAsync(DateTime thresholdDate);
         Task<Guid> CancellationBooking(Guid bookingId);
-        Task<List<BookingsEntity>> GetFilteredBookingsCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild);
+        Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild);
         
 
     }

@@ -27,9 +27,19 @@ namespace BookingsSportsFields.Application.Services
             return await _sportsFieldsRepository.GetAll();
         }
 
+        public async Task<List<SportsFieldsEntity>> GetAllByOwnerID(Guid ownerId)
+        {
+            return await _sportsFieldsRepository.GetAllByOwnerID(ownerId);
+        }
+
         public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city)
         {
             return await _sportsFieldsRepository.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration, city);
+        }
+
+        public async Task<SportsFieldsEntity> AddSportsFields(SportsFieldsEntity sportsFields)
+        {
+            return await _sportsFieldsRepository.CreateSportsField(sportsFields);
         }
     }
 }

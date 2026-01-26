@@ -30,8 +30,10 @@ namespace BookingsSportsFields.DataAccess.Repositories
         {
             _logger.LogInformation("Fetching all sport field");
             return await _dBContext.SportsFields
-                .Include(sf => sf.Location) // Навігаційна властивість
+                .Include(sf => sf.TypesWithDetails)
+                .ThenInclude(t => t.WeeklySchedules)
                 .Include(sf => sf.Owner) // Навігаційна властивість
+                .Include(sf => sf.Location) // Навігаційна властивість
                 //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
                 .AsNoTracking()
                 .ToListAsync();
@@ -47,24 +49,26 @@ namespace BookingsSportsFields.DataAccess.Repositories
             return await _dBContext.SportsFields
                 .Where(sp => sp.OwnerId == ownerId)
                 .Include(sf => sf.Location) // Навігаційна властивість
+                .Include(sf => sf.TypesWithDetails)
+                .ThenInclude(t => t.WeeklySchedules)
                 .Include(sf => sf.Owner) // Навігаційна властивість
                                          //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
                 .AsNoTracking()
                 .ToListAsync();
         }
-        /// <summary>
-        /// Add SportsFields
-        /// </summary>
-        /// <param name="sportsFields"></param>
-        /// <returns></returns>
-        public async Task Add(SportsFieldsEntity sportsFields)
-        {
-            await _dBContext.SportsFields.AddAsync(sportsFields);
-            await _dBContext.SaveChangesAsync();
-        }
+        // /// <summary>
+        // /// Add SportsFields
+        // /// </summary>
+        // /// <param name="sportsFields"></param>
+        // /// <returns></returns>
+        // public async Task Add(SportsFieldsEntity sportsFields)
+        // {
+        //     await _dBContext.SportsFields.AddAsync(sportsFields);
+        //     await _dBContext.SaveChangesAsync();
+        // }
 
         /// <summary>
-        /// Update SportsFields
+        /// !NOT WORK! Update SportsFields !NOT WORK!
         /// </summary>
         /// <param name="sportsFilds"></param>
         /// <returns></returns>
@@ -72,7 +76,11 @@ namespace BookingsSportsFields.DataAccess.Repositories
         public async Task Update(SportsFieldsEntity sportsFilds)
         {
             _logger.LogInformation("Updating SportsFilds with ID: {SportsFildsId}", sportsFilds.Id);
-            var existingSportsFilds = await _dBContext.SportsFields.FirstOrDefaultAsync(sf => sf.Id == sportsFilds.Id);
+            var existingSportsFilds = await _dBContext.SportsFields
+                .Include(sf => sf.TypesWithDetails)
+                .ThenInclude(t => t.WeeklySchedules)
+                .FirstOrDefaultAsync(sf => sf.Id == sportsFilds.Id);
+
 
             if (existingSportsFilds == null)
             {
@@ -81,14 +89,14 @@ namespace BookingsSportsFields.DataAccess.Repositories
             }
 
             existingSportsFilds.Name = sportsFilds.Name;
-            existingSportsFilds.Type = sportsFilds.Type;
-            existingSportsFilds.PricePerHour = sportsFilds.PricePerHour;
+            // existingSportsFilds.Type = sportsFilds.Type;
+            // existingSportsFilds.PricePerHour = sportsFilds.PricePerHour;
             existingSportsFilds.Description = sportsFilds.Description;
             existingSportsFilds.CreatedAt = sportsFilds.CreatedAt;
-            existingSportsFilds.LocationId = sportsFilds.LocationId;  //Тут потрібнго додати перевірку і якимось чином додавати 
+            //existingSportsFilds.LocationId = sportsFilds.LocationId;  //Тут потрібно додати перевірку і якимось чином додавати 
                                                                       //зображення цих же спортивних майданчиків
             existingSportsFilds.OwnerId = sportsFilds.OwnerId;
-            //existingSportsFilds.Images = sportsFilds.Images;//незнаю чи це норм
+            //existingSportsFilds.Images = sportsFilds.Images;//не знаю чи це норм
 
             _dBContext.SportsFields.Update(existingSportsFilds);
             await _dBContext.SaveChangesAsync();
@@ -106,6 +114,8 @@ namespace BookingsSportsFields.DataAccess.Repositories
             try
             {
                 var query = _dBContext.SportsFields
+                    .Include(sf => sf.TypesWithDetails)
+                    .ThenInclude(t => t.WeeklySchedules)
                     .Include(s => s.Location)
                     .Include(s => s.Owner)
                     .Include(s => s.Bookings)
@@ -114,7 +124,8 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
                 if (type.HasValue)
                 {
-                    query = query.Where(s => (int)s.Type == type.Value);
+                    //query = query.Where(s => (int)s.Type == type.Value);
+                    query = query.Where(s => s.TypesWithDetails.Any(t => (int)t.Type == type.Value));
                 }
 
                 if (!string.IsNullOrEmpty(searchTitleOrAddres))
@@ -155,6 +166,33 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 throw;
             }
         }
+
+        public async Task<SportsFieldsEntity> CreateSportsField(SportsFieldsEntity sportsFields)
+        {
+            _logger.LogInformation("Creating SportsField field");
+            try
+            {
+                await _dBContext.SportsFields.AddAsync(sportsFields);
+                await _dBContext.SaveChangesAsync();
+                return sportsFields;
+                
+                // // 👉 Після збереження повторно отримуємо об'єкт з підключеним Location
+                // var created = await _dBContext.SportsFields
+                //     .Include(sf => sf.Location)
+                //     .Include(sf => sf.TypesWithDetails)
+                //     .ThenInclude(t => t.WeeklySchedules)
+                //     .FirstOrDefaultAsync(sf => sf.Id == sportsFields.Id);
+                //
+                // return created!;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error creating SportsField");
+                throw;
+            }
+        }
+
+        
 
 
         //public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)

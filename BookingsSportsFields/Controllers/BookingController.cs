@@ -33,6 +33,16 @@ namespace BookingsSportsFields.Controllers
 
             return Ok(response);
         }
+        
+        [HttpGet("GetAllBookingsForSportFieldByDate")]
+        public async Task<ActionResult<List<BookingResponse>>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date)
+        {
+            var booking = await _bookingService.GetAllBookingsForSportFieldByDate(userId, sportField, date);
+
+            var response = booking.Select(x => new BookingResponse(x)).ToList();
+
+            return Ok(response);
+        }
 
         [HttpGet("GetBookingByIdUser")]
         public async Task<ActionResult<List<BookingResponse>>> GetByUserId(Guid userId)
@@ -45,6 +55,11 @@ namespace BookingsSportsFields.Controllers
         }
 
         //[HttpDelete("{bookingId}")]
+        /// <summary>
+        /// Its method never uses because we have a cancellation booking
+        /// </summary>
+        /// <param name="bookingId"></param>
+        /// <returns></returns>
         [HttpDelete("DeleteBookingByIdBooking")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -87,7 +102,7 @@ namespace BookingsSportsFields.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error cancelling booking with id {BookingId}", bookingId);
-                return StatusCode(StatusCodes.Status500InternalServerError); // 500 Internal Server Error
+                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message); // 500 Internal Server Error
             }
         }
 
@@ -178,18 +193,19 @@ namespace BookingsSportsFields.Controllers
             }
         }
 
-        [Authorize]
+        // [Authorize]
+        [AllowAnonymous]
         [HttpGet("filtered-bookings-crm")]
-        public async Task<ActionResult<List<BookingsEntity>>> GetFilteredBookingsCRM([FromQuery] Guid ownerId,[FromQuery] int? Status, [FromQuery] DateTime? date, [FromQuery] string? titleOfSportFild)
+        public async Task<ActionResult<List<BookingsEntity>>> GetFilteredBookingsCRM([FromQuery] Guid ownerId,[FromQuery] int? status, [FromQuery] DateTime? date, [FromQuery] string? titleOfSportFild)
         {
-            if (ownerId == null)
-            {
-                _logger.LogWarning("Unauthorized access attempt to GetFiltered bookings.");
-                return Unauthorized();
-            }
+            // if (ownerId == null)
+            // {
+            //     _logger.LogWarning("Unauthorized access attempt to GetFiltered bookings.");
+            //     return Unauthorized();
+            // }
             
             _logger.LogInformation("GetFiltered bookings with ownerId: {ownerId}", ownerId);
-            var bookings = await _bookingService.GetAllBookingsByFiltered(ownerId, Status, date, titleOfSportFild);
+            var bookings = await _bookingService.GetReservedReservationsForFieldOwnerCRM(ownerId, status, date, titleOfSportFild);
             
             return Ok(bookings);
         }
