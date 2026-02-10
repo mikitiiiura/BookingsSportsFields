@@ -57,6 +57,7 @@ namespace BookingsSportsFields.Application.Contracts.Response
     (
         Guid Id,
         string Title,
+        List<SportTypeDetailDto> Types,
         string ImageUrl,
         OwnerDto? Owner
     )
@@ -65,6 +66,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
         (
             sportsFields.Id,
             sportsFields.Name,
+            sportsFields.TypesWithDetails.Select(t => new SportTypeDetailDto(t.Type, t.PricePerHour, t.WarningInformation, t.WeeklySchedules.Select(ws => new WeeklyScheduleDto(ws.DayOfWeek, ws.AvailableFrom, ws.AvailableTo)).ToList()
+            )).ToList(),
             sportsFields.ImageUrl,
             sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!
         )

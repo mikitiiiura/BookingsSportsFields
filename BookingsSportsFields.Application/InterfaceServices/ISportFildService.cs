@@ -1,4 +1,5 @@
-﻿using BookingsSportsFields.DataAccess.ModelEntity;
+﻿using BookingsSportsFields.Application.Contracts.Request;
+using BookingsSportsFields.DataAccess.ModelEntity;
 
 namespace BookingsSportsFields.Application.InterfaceServices
 {
@@ -10,6 +11,9 @@ namespace BookingsSportsFields.Application.InterfaceServices
 
         Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration, string? city);
         Task<SportsFieldsEntity> AddSportsFields(SportsFieldsEntity sportsFields);
+        
+       // Task<SportsFieldsEntity?> GetById(Guid id);
+        Task UpdateAsync(UpdateSportsFieldDto dto);
 
     }
 }

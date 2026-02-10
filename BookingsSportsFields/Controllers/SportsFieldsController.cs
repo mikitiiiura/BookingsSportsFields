@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using System.Threading.Tasks;
+using BookingsSportsFields.Application.Contracts.Request;
 
 namespace BookingsSportsFields.Controllers
 {
@@ -42,7 +43,7 @@ namespace BookingsSportsFields.Controllers
         }
         
         [HttpGet("GetAllSportFieldByOwnerID")]
-        public async Task<ActionResult<List<SportsFieldResponce>>> GetAllSportFildByOwnerID(Guid ownerId)
+        public async Task<ActionResult<List<SportsFieldByUser>>> GetAllSportFildByOwnerID(Guid ownerId)
         {
             var sportFields = await _sportFildService.GetAllByOwnerID(ownerId);
             if (sportFields == null || !sportFields.Any())
@@ -125,6 +126,28 @@ namespace BookingsSportsFields.Controllers
             {
                 _logger.LogError(e, "Помилка при створенні спортивного майданчика");
                 return StatusCode(500, "Виникла внутрішня помилка при створенні майданчика");
+            }
+        }
+
+        [HttpPut("update-sport-fields/{id}")]
+        public async Task<IActionResult> UpdateSportsField(Guid id, [FromBody] UpdateSportsFieldDto dto)
+        {
+            if (id != dto.Id)
+                return BadRequest("ID в URL та в тілі не співпадають");
+
+            try
+            {
+                await _sportFildService.UpdateAsync(dto);
+                return Ok(new { Message = "Майданчик успішно оновлено", Id = dto.Id });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound("Майданчик не знайдено");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Помилка при оновленні майданчика {Id}", id);
+                return StatusCode(500, "Внутрішня помилка при оновленні");
             }
         }
         
