@@ -8,20 +8,24 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BookingsSportsFields.Application.Contracts.Request;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 namespace BookingsSportsFields.Application.Services
 {
     public class SportFildService : ISportFildService
     {
+        private readonly IConfiguration _configuration;
         private readonly ISportsFieldsRepository _sportsFieldsRepository;
         private readonly ILogger _logger;
+        
 
-        public SportFildService(ISportsFieldsRepository sportsFieldsRepository, ILogger<SportFildService> logger)
+        public SportFildService(ISportsFieldsRepository sportsFieldsRepository, ILogger<SportFildService> logger, IConfiguration configuration)
         {
-            _sportsFieldsRepository = sportsFieldsRepository;
+            _configuration = configuration;
+            _sportsFieldsRepository = sportsFieldsRepository; 
             _logger = logger;
         }
-
         // Отримати всі завдання
         public async Task<List<SportsFieldsEntity>> GetAll()
         {
@@ -44,8 +48,6 @@ namespace BookingsSportsFields.Application.Services
         {
             return await _sportsFieldsRepository.CreateSportsField(sportsFields);
         }
-
-
 
         public async Task UpdateAsync(UpdateSportsFieldDto dto)
         {
@@ -80,6 +82,37 @@ namespace BookingsSportsFields.Application.Services
             }
 
             await _sportsFieldsRepository.SaveChangesAsync();
+        }
+        
+        public async Task<string> UpdateSportsFieldImageAsync(Guid id, IFormFile imageFile)
+        {
+            // Перевірки
+            if (!imageFile.ContentType.StartsWith("image/"))
+                throw new ArgumentException("Тільки зображення дозволені (image/*)");
+
+            if (imageFile.Length > 5 * 1024 * 1024)
+                throw new ArgumentException("Файл завеликий, максимум 5 МБ");
+
+            // Збереження файлу
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(imageFile.FileName)}";
+            var filePath = Path.Combine("wwwroot", "images", "sportsfields", fileName);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await imageFile.CopyToAsync(stream);
+            }
+
+            var baseUrl = _configuration["AppSettings:BaseUrl"] ?? "https://localhost:44313";
+            var newUrl = $"{baseUrl}/images/sportsfields/{fileName}";
+
+            _logger.LogInformation("Збережено зображення: {NewUrl}", newUrl);
+
+            // Оновлюємо ТІЛЬКИ ImageUrl — без виклику повного UpdateAsync
+            await _sportsFieldsRepository.UpdateImageUrlAsync(id, newUrl);
+
+            return newUrl;
         }
     }
 }

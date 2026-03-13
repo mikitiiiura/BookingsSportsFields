@@ -21,6 +21,25 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task<Guid> CancellationBooking(Guid bookingId);
         Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date, string? titleOfSportFild);
         
+        /// <summary>
+        /// Всі бронювання для майданчика за конкретну дату
+        /// </summary>
+        Task<List<BookingsEntity>> GetBookingsForFieldByDateAsync(Guid sportsFieldId, DateTime date);
 
+        /// <summary>
+        /// Всі бронювання за період (для скасувань, прибутку, пік-годин)
+        /// </summary>
+        Task<List<BookingsEntity>> GetBookingsForFieldByPeriodAsync(
+            Guid sportsFieldId,
+            DateTime from,
+            DateTime to);
+
+        /// <summary>
+        /// Кількість бронювань по годинах за період (для пік-годин)
+        /// </summary>
+        Task<Dictionary<int, int>> GetHourlyBookingCountsAsync(
+            Guid sportsFieldId,
+            DateTime from,
+            DateTime to);
     }
 }

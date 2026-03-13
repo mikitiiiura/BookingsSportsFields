@@ -191,7 +191,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
             TimeSpan openingTime = new TimeSpan(8, 0, 0);  // 8:00
             TimeSpan closingTime = new TimeSpan(22, 0, 0); // 22:00
-            TimeSpan slotDuration = new TimeSpan(0, 30, 0); // 30 хв
+            TimeSpan slotDuration = new TimeSpan(0, 15, 0); // 15 хв
 
             List<TimeSlot> availableSlots = new List<TimeSlot>();
             DateTime currentSlotStart = date.Date.Add(openingTime);
@@ -343,6 +343,44 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 
         }
         
+        
+        public async Task<List<BookingsEntity>> GetBookingsForFieldByDateAsync(Guid sportsFieldId, DateTime date)
+        {
+            var start = date.Date;
+            var end = start.AddDays(1);
+
+            return await _dBContext.Bookings
+                .Where(b => b.SportsFieldId == sportsFieldId &&
+                            b.StartTime >= start &&
+                            b.StartTime < end)
+                .ToListAsync();
+        }
+
+        public async Task<List<BookingsEntity>> GetBookingsForFieldByPeriodAsync(Guid sportsFieldId, DateTime from, DateTime to)
+        {
+            return await _dBContext.Bookings
+                .Where(b => b.SportsFieldId == sportsFieldId &&
+                            b.StartTime >= from &&
+                            b.StartTime < to)
+                .ToListAsync();
+        }
+
+        public async Task<Dictionary<int, int>> GetHourlyBookingCountsAsync(Guid sportsFieldId, DateTime from, DateTime to)
+        {
+            var bookings = await _dBContext.Bookings
+                .Where(b => b.SportsFieldId == sportsFieldId &&
+                            b.StartTime >= from &&
+                            b.StartTime < to)
+                .GroupBy(b => b.StartTime.Hour)
+                .Select(g => new
+                {
+                    Hour = g.Key,
+                    Count = g.Count()
+                })
+                .ToDictionaryAsync(x => x.Hour, x => x.Count);
+
+            return bookings;
+        }
         
 
     }

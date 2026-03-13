@@ -1,5 +1,6 @@
 ﻿using BookingsSportsFields.Application.Contracts.Request;
 using BookingsSportsFields.DataAccess.ModelEntity;
+using Microsoft.AspNetCore.Http;
 
 namespace BookingsSportsFields.Application.InterfaceServices
 {
@@ -14,6 +15,8 @@ namespace BookingsSportsFields.Application.InterfaceServices
         
        // Task<SportsFieldsEntity?> GetById(Guid id);
         Task UpdateAsync(UpdateSportsFieldDto dto);
+
+        Task<string> UpdateSportsFieldImageAsync(Guid id, IFormFile imageFile);
 
     }
 }

@@ -175,6 +175,23 @@ namespace BookingsSportsFields.DataAccess.Repositories
     }
 }
        
+// Новий метод — оновлює ТІЛЬКИ ImageUrl, не чіпає типи
+public async Task UpdateImageUrlAsync(Guid id, string newImageUrl)
+{
+    var entity = await _dBContext.SportsFields
+        .FirstOrDefaultAsync(sf => sf.Id == id);
+
+    if (entity == null)
+        throw new KeyNotFoundException($"SportsField {id} not found");
+
+    entity.ImageUrl = newImageUrl;
+
+    _dBContext.SportsFields.Update(entity);
+    await _dBContext.SaveChangesAsync();
+
+    _logger.LogInformation("ImageUrl оновлено для майданчика {Id}: {NewUrl}", id, newImageUrl);
+}
+       
        
 public async Task<SportsFieldsEntity?> GetByIdWithDetailsAsync(Guid id)
 {
@@ -199,6 +216,11 @@ public async Task ReplaceTypesAndSchedulesAsync(Guid sportsFieldId, List<SportsF
         type.SportsFieldId = sportsFieldId;     // ← ОБОВ'ЯЗКОВО!
         _dBContext.SportsFieldSportTypes.Add(type);
     }
+}
+
+public async Task Delete(Guid id)
+{
+    await _dBContext.SportsFields.Where(sf => sf.Id == id).ExecuteDeleteAsync();
 }
 
 public async Task SaveChangesAsync()

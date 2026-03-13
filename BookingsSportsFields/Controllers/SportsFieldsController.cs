@@ -129,27 +129,98 @@ namespace BookingsSportsFields.Controllers
             }
         }
 
-        [HttpPut("update-sport-fields/{id}")]
-        public async Task<IActionResult> UpdateSportsField(Guid id, [FromBody] UpdateSportsFieldDto dto)
-        {
-            if (id != dto.Id)
-                return BadRequest("ID в URL та в тілі не співпадають");
+//         [HttpPut("update-sport-fields/{id}")]
+// public async Task<IActionResult> UpdateSportsField(
+//     Guid id,
+//     [FromForm] UpdateSportsFieldDto dto,      // текстові поля + типи
+//     [FromForm] IFormFile? imageFile = null)   // файл — опціональний
+// {
+//     if (id != dto.Id)
+//         return BadRequest("ID в URL та в тілі не співпадають");
+//
+//     try
+//     {
+//         // Якщо є новий файл — зберігаємо його і оновлюємо URL
+//         if (imageFile != null && imageFile.Length > 0)
+//         {
+//             if (!imageFile.ContentType.StartsWith("image/"))
+//                 return BadRequest("Тільки зображення дозволені (image/*)");
+//
+//             if (imageFile.Length > 5 * 1024 * 1024)
+//                 return BadRequest("Файл завеликий, максимум 5 МБ");
+//
+//             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(imageFile.FileName)}";
+//             var filePath = Path.Combine("wwwroot", "images", "sportsfields", fileName);
+//
+//             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+//
+//             using (var stream = new FileStream(filePath, FileMode.Create))
+//             {
+//                 await imageFile.CopyToAsync(stream);
+//             }
+//
+//             dto.ImageUrl = $"/images/sportsfields/{fileName}"; // новий URL
+//             // або повний: $"https://localhost:44313/images/sportsfields/{fileName}"
+//         }
+//         // Якщо файлу немає — dto.ImageUrl залишається тим, що прийшов (старий або null)
+//
+//         await _sportFildService.UpdateAsync(dto);
+//
+//         return Ok(new 
+//         { 
+//             Message = "Майданчик оновлено", 
+//             Id = dto.Id, 
+//             ImageUrl = dto.ImageUrl 
+//         });
+//     }
+//     catch (Exception ex)
+//     {
+//         _logger.LogError(ex, "Помилка оновлення майданчика {Id}", id);
+//         return StatusCode(500, "Внутрішня помилка при оновленні");
+//     }
+// }
+[HttpPut("update-sport-fields/{id}")]
+public async Task<IActionResult> UpdateSportsField(Guid id, [FromBody] UpdateSportsFieldDto dto)
+{
+    if (id != dto.Id)
+        return BadRequest("ID не співпадає");
 
-            try
-            {
-                await _sportFildService.UpdateAsync(dto);
-                return Ok(new { Message = "Майданчик успішно оновлено", Id = dto.Id });
-            }
-            catch (KeyNotFoundException)
-            {
-                return NotFound("Майданчик не знайдено");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Помилка при оновленні майданчика {Id}", id);
-                return StatusCode(500, "Внутрішня помилка при оновленні");
-            }
-        }
+    try
+    {
+        await _sportFildService.UpdateAsync(dto);
+        return Ok(new { Message = "Майданчик оновлено", Id = dto.Id });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Помилка оновлення майданчика {Id}", id);
+        return StatusCode(500, "Внутрішня помилка");
+    }
+}
+
+[HttpPut("update-sport-fields/{id}/image")]
+public async Task<IActionResult> UpdateImage(Guid id, IFormFile imageFile)
+{
+    if (imageFile == null || imageFile.Length == 0)
+        return BadRequest("Файл не завантажено");
+
+    try
+    {
+        // Передаємо файл напряму в сервіс
+        var newImageUrl = await _sportFildService.UpdateSportsFieldImageAsync(id, imageFile);
+
+        return Ok(new { imageUrl = newImageUrl });
+    }
+    catch (KeyNotFoundException)
+    {
+        return NotFound("Майданчик не знайдено");
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Помилка завантаження зображення для майданчика {Id}", id);
+        return StatusCode(500, "Помилка при збереженні зображення");
+    }
+}
+
         
         public class CreateSportsFieldDto
         {

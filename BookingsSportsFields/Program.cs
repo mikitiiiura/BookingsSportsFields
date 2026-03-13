@@ -9,6 +9,8 @@ using BookingsSportsFields.DataAccess.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using BookingsSportsFields.Application.Services.Hosted_Service;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,7 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
 
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
@@ -43,7 +46,9 @@ builder.Services.AddScoped<IBookingsRepository, BookingsRepository>();
 builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddScoped<ISportFildService, SportFildService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 
+builder.Services.AddHostedService<BookingStatusUpdater>();
 
 builder.Services.AddCors(options =>
 {
@@ -55,6 +60,15 @@ builder.Services.AddCors(options =>
 }); 
 
 var app = builder.Build();
+app.UseStaticFiles(); // save image from backend
+
+// Якщо хочеш, щоб папка images була доступна з /images (а не з /wwwroot/images)
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "wwwroot", "images")),
+    RequestPath = "/images"
+});
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
