@@ -17,21 +17,68 @@ namespace BookingsSportsFields.DataAccess.Repositories
             _logger = logger;
         }
 
-        public async Task<bool> IsFieldAvailable(Guid sportsFieldId, DateTime startTime, DateTime endTime)
+        // 1. Оновлений IsFieldAvailable (тепер з типом спорту)
+        public async Task<bool> IsFieldAvailable(
+            Guid sportsFieldId,
+            DateTime startTime,
+            DateTime endTime,
+            SportFieldsType sportType,
+            Guid? excludeBookingId = null)
         {
-            _logger.LogInformation("Checking availability for SportsField ID: {SportsFieldId} from {StartTime} to {EndTime}",
-                sportsFieldId, startTime, endTime);
+            const int bufferMinutes = 15;
 
-            var conflictingBookings = await _dBContext.Bookings
+            var query = _dBContext.Bookings
                 .Where(b => b.SportsFieldId == sportsFieldId &&
-                           b.Status != BookingStatus.Cancelled && // Ігноруємо скасовані бронювання
-                           ((startTime >= b.StartTime && startTime < b.EndTime) || // Новий початок всередині існуючого
-                            (endTime > b.StartTime && endTime <= b.EndTime) || // Новий кінець всередині існуючого
-                            (startTime <= b.StartTime && endTime >= b.EndTime))) // Новий період повністю містить існуючий
-                .AsNoTracking()
-                .AnyAsync();
+                            b.Status != BookingStatus.Cancelled &&
+                            b.SportType == sportType);
 
-            return !conflictingBookings;
+            if (excludeBookingId.HasValue)
+            {
+                query = query.Where(b => b.Id != excludeBookingId.Value);
+            }
+
+            // Матеріалізуємо список, щоб можна було логувати деталі
+            var bookings = await query.ToListAsync();
+
+            _logger.LogInformation(
+                "Перевірка доступності: {Start} → {End} (buffer +{Buffer} хв), бронювань знайдено: {Count}",
+                startTime.ToString("yyyy-MM-dd HH:mm"),
+                endTime.ToString("yyyy-MM-dd HH:mm"),
+                bufferMinutes,
+                bookings.Count
+            );
+
+            bool hasConflict = false;
+
+            foreach (var b in bookings)
+            {
+                var existingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
+
+                bool conflict =
+                    startTime < existingEffectiveEnd &&
+                    b.StartTime < endTime;
+
+                if (conflict)
+                {
+                    _logger.LogWarning(
+                        "КОНФЛІКТ виявлено! " +
+                        "Нове бронювання: {NewStart} → {NewEnd} | " +
+                        "Існуюче: {ExistStart} → {ExistEnd} (effective end: {EffEnd}) | " +
+                        "Причина: startTime < EffEnd && ExistStart < endTime",
+                        startTime.ToString("HH:mm"),
+                        endTime.ToString("HH:mm"),
+                        b.StartTime.ToString("HH:mm"),
+                        b.EndTime.ToString("HH:mm"),
+                        existingEffectiveEnd.ToString("HH:mm")
+                    );
+                    hasConflict = true;
+                    // можна break, якщо не потрібно перевіряти всі
+                }
+            }
+
+            _logger.LogInformation("Результат перевірки: {Result}", !hasConflict ? "ДОСТУПНО" : "ЗАЙНЯТО");
+
+            return !hasConflict;
         }
         
         /// <summary>
@@ -89,17 +136,21 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .ToListAsync();
         }
 
+        // 3. Оновлений AddAsync (використовує новий IsFieldAvailable)
         public async Task<Guid> AddAsync(BookingsEntity bookings)
         {
-            _logger.LogInformation("Adding new booking: {BookingsId}", bookings.Id);
+            _logger.LogInformation("Adding new booking: {BookingsId} for SportType: {SportType}", bookings.Id, bookings.SportType);
 
-            // Перевірка доступності
-            bool isAvailable = await IsFieldAvailable(bookings.SportsFieldId, bookings.StartTime, bookings.EndTime);
+            bool isAvailable = await IsFieldAvailable(
+                bookings.SportsFieldId, 
+                bookings.StartTime, 
+                bookings.EndTime, 
+                bookings.SportType);   // <-- передаємо тип
 
             if (!isAvailable)
             {
-                _logger.LogWarning("Field is not available for booking ID: {BookingsId}", bookings.Id);
-                throw new Exception("The field is not available at the requested time");
+                _logger.LogWarning("Field is not available for booking ID: {BookingsId} (SportType {SportType})", bookings.Id, bookings.SportType);
+                throw new Exception("The field is not available at the requested time for this sport type");
             }
 
             await _dBContext.Bookings.AddAsync(bookings);
@@ -154,68 +205,72 @@ namespace BookingsSportsFields.DataAccess.Repositories
         /// <param name="bookings"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public async Task AddWithOutIdentityUser(BookingsEntity bookings)
-        {
-            _logger.LogInformation("Adding new booking: {BookingsId}", bookings.Id);
-
-            // Перевірка доступності
-            bool isAvailable = await IsFieldAvailable(bookings.SportsFieldId, bookings.StartTime, bookings.EndTime);
-
-            if (!isAvailable)
-            {
-                _logger.LogWarning("Field is not available for booking ID: {BookingsId}", bookings.Id);
-                throw new Exception("The field is not available at the requested time");
-            }
-
-            await _dBContext.Bookings.AddAsync(bookings);
-            await _dBContext.SaveChangesAsync();
-        }
+        // public async Task AddWithOutIdentityUser(BookingsEntity bookings)
+        // {
+        //     _logger.LogInformation("Adding new booking: {BookingsId}", bookings.Id);
+        //
+        //     // Перевірка доступності
+        //     bool isAvailable = await IsFieldAvailable(bookings.SportsFieldId, bookings.StartTime, bookings.EndTime);
+        //
+        //     if (!isAvailable)
+        //     {
+        //         _logger.LogWarning("Field is not available for booking ID: {BookingsId}", bookings.Id);
+        //         throw new Exception("The field is not available at the requested time");
+        //     }
+        //
+        //     await _dBContext.Bookings.AddAsync(bookings);
+        //     await _dBContext.SaveChangesAsync();
+        // }
         /// <summary>
         /// Get Available Time Slots
         /// </summary>
         /// <param name="sportsFieldId"></param>
         /// <param name="date"></param>
         /// <returns></returns>
-        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date)
+        // 2. Оновлений GetAvailableTimeSlots (тепер з типом)
+        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, SportFieldsType sportType)
         {
-            _logger.LogInformation("Fetching available time slots for SportsField ID: {SportsFieldId} on {Date}",
-                sportsFieldId, date.Date);
+            _logger.LogInformation("Fetching available time slots for {SportsFieldId} on {Date} type {SportType}", sportsFieldId, date.Date, sportType);
 
             var bookings = await _dBContext.Bookings
                 .Where(b => b.SportsFieldId == sportsFieldId &&
-                           b.StartTime.Date == date.Date &&
-                           b.Status != BookingStatus.Cancelled)
+                            b.StartTime.Date == date.Date &&
+                            b.Status != BookingStatus.Cancelled &&
+                            b.SportType == sportType)
                 .OrderBy(b => b.StartTime)
                 .AsNoTracking()
                 .ToListAsync();
 
-            TimeSpan openingTime = new TimeSpan(8, 0, 0);  // 8:00
-            TimeSpan closingTime = new TimeSpan(22, 0, 0); // 22:00
-            TimeSpan slotDuration = new TimeSpan(0, 15, 0); // 15 хв
+            const int bufferMinutes = 15; // повертаємо буфер сюди
+            TimeSpan openingTime = new TimeSpan(8, 0, 0);
+            TimeSpan closingTime = new TimeSpan(22, 0, 0);
+            TimeSpan slotDuration = new TimeSpan(0, 30, 0);
 
-            List<TimeSlot> availableSlots = new List<TimeSlot>();
-            DateTime currentSlotStart = date.Date.Add(openingTime);
+            var availableSlots = new List<TimeSlot>();
+            var current = date.Date + openingTime;
 
-            while (currentSlotStart.Add(slotDuration) <= date.Date.Add(closingTime))
+            while (current + slotDuration <= date.Date + closingTime)
             {
-                DateTime currentSlotEnd = currentSlotStart.Add(slotDuration);
+                var slotEnd = current + slotDuration;
 
-                bool isSlotAvailable = !bookings.Any(b =>
-                    (currentSlotStart >= b.StartTime && currentSlotStart < b.EndTime) ||
-                    (currentSlotEnd > b.StartTime && currentSlotEnd <= b.EndTime) ||
-                    (currentSlotStart <= b.StartTime && currentSlotEnd >= b.EndTime)
-                );
+                bool isAvailable = !bookings.Any(b =>
+                {
+                    var bookingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
+                    return
+                        (current < bookingEffectiveEnd && current >= b.StartTime) ||
+                        (b.StartTime < slotEnd && b.EndTime > current);
+                });
 
-                if (isSlotAvailable)
+                if (isAvailable)
                 {
                     availableSlots.Add(new TimeSlot
                     {
-                        StartTime = currentSlotStart,
-                        EndTime = currentSlotEnd
+                        StartTime = current,
+                        EndTime = slotEnd
                     });
                 }
 
-                currentSlotStart = currentSlotEnd;
+                current = slotEnd;
             }
 
             return availableSlots;
@@ -243,7 +298,13 @@ namespace BookingsSportsFields.DataAccess.Repositories
             // Якщо змінився час, перевіряємо доступність
             if (existingBooking.StartTime != bookings.StartTime || existingBooking.EndTime != bookings.EndTime)
             {
-                bool isAvailable = await IsFieldAvailable(bookings.SportsFieldId, bookings.StartTime, bookings.EndTime);
+                bool isAvailable = await IsFieldAvailable(
+                    bookings.SportsFieldId,
+                    bookings.StartTime,
+                    bookings.EndTime,
+                    existingBooking.SportType,          // тип беремо зі старого бронювання
+                    excludeBookingId: existingBooking.Id   // ігноруємо себе
+                );
 
                 // Якщо перевіряємо доступність для оновлення, потрібно виключити поточне бронювання
                 // (воно може "конфліктувати" сам із собою)

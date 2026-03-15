@@ -51,11 +51,11 @@ namespace BookingsSportsFields.Application.Services
             await _bookingsRepository.Delete(bookingId);
         }
 
-        public async Task CreateBookingWithOutIdentityUser(BookingsEntity bookingsEntity)
-        {
-
-            await _bookingsRepository.AddWithOutIdentityUser(bookingsEntity);
-        }
+        // public async Task CreateBookingWithOutIdentityUser(BookingsEntity bookingsEntity)
+        // {
+        //
+        //     await _bookingsRepository.AddWithOutIdentityUser(bookingsEntity);
+        // }
 
         /// <summary>
         /// Для зареєстрованих
@@ -126,15 +126,15 @@ namespace BookingsSportsFields.Application.Services
             await _bookingsRepository.AddAsync(booking);
             return booking.Id;
         }
-        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date)
+        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, int sportType)
         {
-            return await _bookingsRepository.GetAvailableTimeSlots(sportsFieldId, date);
+            return await _bookingsRepository.GetAvailableTimeSlots(sportsFieldId, date, (SportFieldsType)sportType);
         }
 
-        public async Task<bool> CheckAvailability(Guid sportsFieldId, DateTime startTime, int durationMinutes)
+        public async Task<bool> CheckAvailability(Guid sportsFieldId, DateTime startTime, int durationMinutes, int sportType)
         {
             DateTime endTime = startTime.AddMinutes(durationMinutes);
-            return await _bookingsRepository.IsFieldAvailable(sportsFieldId, startTime, endTime);
+            return await _bookingsRepository.IsFieldAvailable(sportsFieldId, startTime, endTime, (SportFieldsType)sportType);
         }
         public async Task DeleteOldBookingsAsync(DateTime thresholdDate)
         {
@@ -158,3 +158,4 @@ namespace BookingsSportsFields.Application.Services
 
     }
 }
+

@@ -142,14 +142,15 @@ namespace BookingsSportsFields.Controllers
         }
 
         // BookingController.cs
-        [HttpGet("available-slots/{sportsFieldId}/{date}")]
+        [HttpGet("available-slots/{sportsFieldId}/{date}/{sportType}")]
         public async Task<ActionResult<List<TimeSlot>>> GetAvailableTimeSlots(
-    Guid sportsFieldId,
-    DateTime date)
+            Guid sportsFieldId, 
+            DateTime date, 
+            int sportType)
         {
             try
             {
-                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date);
+                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date, sportType);
                 return Ok(slots);
             }
             catch (Exception ex)
@@ -175,20 +176,37 @@ namespace BookingsSportsFields.Controllers
 
 
         [HttpPost("check-availability")]
-        public async Task<ActionResult<bool>> CheckAvailability(
-            [FromBody] CheckAvailabilityRequest request)
+        public async Task<ActionResult<bool>> CheckAvailability([FromBody] CheckAvailabilityRequest request)
         {
+            _logger.LogInformation(
+                "CheckAvailability запит: FieldId={FieldId}, Start={Start}, Duration={Duration} хв, SportType={SportType}",
+                request.SportsFieldId,
+                request.StartTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                request.DurationMinutes,
+                request.SportType
+            );
+
             try
             {
                 bool isAvailable = await _bookingService.CheckAvailability(
                     request.SportsFieldId,
                     request.StartTime,
-                    request.DurationMinutes);
+                    request.DurationMinutes,
+                    request.SportType
+                );
+
+                _logger.LogInformation(
+                    "CheckAvailability результат: {Result} | Запит: {Start} → {End}",
+                    isAvailable,
+                    request.StartTime.ToString("HH:mm"),
+                    request.StartTime.AddMinutes(request.DurationMinutes).ToString("HH:mm")
+                );
 
                 return Ok(isAvailable);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Помилка в CheckAvailability: {Message}", ex.Message);
                 return BadRequest(ex.Message);
             }
         }
@@ -218,5 +236,6 @@ namespace BookingsSportsFields.Controllers
         public Guid SportsFieldId { get; set; }
         public DateTime StartTime { get; set; }
         public int DurationMinutes { get; set; }
+        public int SportType { get; set; }   // <-- ДОДАНО
     }
 }

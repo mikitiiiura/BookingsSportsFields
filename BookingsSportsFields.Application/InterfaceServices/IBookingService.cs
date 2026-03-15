@@ -6,14 +6,14 @@ namespace BookingsSportsFields.Application.InterfaceServices
 {
     public interface IBookingService
     {
-        Task<bool> CheckAvailability(Guid sportsFieldId, DateTime startTime, int durationMinutes);
+        Task<bool> CheckAvailability(Guid sportsFieldId, DateTime startTime, int durationMinutes, int sportType);
         Task<Guid> CreateBookingAsync(CreateBookingRequest request);
-        Task CreateBookingWithOutIdentityUser(BookingsEntity bookingsEntity);
+        // Task CreateBookingWithOutIdentityUser(BookingsEntity bookingsEntity);
         Task<Guid> CreateGuestBookingAsync(CreateGuestBookingRequest request);
         Task<List<BookingsEntity>> GetAllBooking();
         
         Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date);
-        Task<List<BookingsRepository.TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date);
+        Task<List<BookingsRepository.TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, int sportType);
         Task<List<BookingsEntity>> GetBookingByUser(Guid userId);
 
         Task DeleteBooking(Guid bookingId);
