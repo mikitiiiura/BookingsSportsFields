@@ -218,44 +218,20 @@ public async Task ReplaceTypesAndSchedulesAsync(Guid sportsFieldId, List<SportsF
     }
 }
 
-public async Task Delete(Guid id)
+public async Task<bool> Delete(Guid id)
 {
-    await _dBContext.SportsFields.Where(sf => sf.Id == id).ExecuteDeleteAsync();
+    int updatedRows = await _dBContext.SportsFields
+        .IgnoreQueryFilters() // Додай це, щоб знайти запис незалежно від фільтра
+        .Where(sf => sf.Id == id)
+        .ExecuteUpdateAsync(s => s.SetProperty(b => b.IsDeleted, true));
+        
+    return updatedRows > 0;
 }
 
 public async Task SaveChangesAsync()
 {
     await _dBContext.SaveChangesAsync();
 }
-        // public async Task Update(SportsFieldsEntity sportsFilds)
-        // {
-        //     _logger.LogInformation("Updating SportsFilds with ID: {SportsFildsId}", sportsFilds.Id);
-        //     var existingSportsFilds = await _dBContext.SportsFields
-        //         .Include(sf => sf.TypesWithDetails)
-        //         .ThenInclude(t => t.WeeklySchedules)
-        //         .FirstOrDefaultAsync(sf => sf.Id == sportsFilds.Id);
-        //
-        //
-        //     if (existingSportsFilds == null)
-        //     {
-        //         _logger.LogWarning("SportsFilds with ID {SportsFildsId} not found", sportsFilds.Id);
-        //         throw new Exception("SportsFilds not found");
-        //     }
-        //
-        //     existingSportsFilds.Name = sportsFilds.Name;
-        //     // existingSportsFilds.Type = sportsFilds.Type;
-        //     // existingSportsFilds.PricePerHour = sportsFilds.PricePerHour;
-        //     existingSportsFilds.Description = sportsFilds.Description;
-        //     existingSportsFilds.CreatedAt = sportsFilds.CreatedAt;
-        //     //existingSportsFilds.LocationId = sportsFilds.LocationId;  //Тут потрібно додати перевірку і якимось чином додавати 
-        //                                                               //зображення цих же спортивних майданчиків
-        //     existingSportsFilds.OwnerId = sportsFilds.OwnerId;
-        //     //existingSportsFilds.Images = sportsFilds.Images;//не знаю чи це норм
-        //
-        //     _dBContext.SportsFields.Update(existingSportsFilds);
-        //     await _dBContext.SaveChangesAsync();
-        // }
-
         /// <summary>
         /// Filtered Fild
         /// </summary>
@@ -347,43 +323,5 @@ public async Task SaveChangesAsync()
         }
 
         
-
-
-        //public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres, DateTime? date, string? startTime, string? duration)
-        //{
-        //    _logger.LogInformation("Fetching filtered sportFild");
-        //    try
-        //    {
-        //        var query = _dBContext.SportsFields
-        //            .Include(s => s.Location)
-        //            .Include(s => s.Owner)
-        //            //.Include(s => s.Images)
-        //            .AsNoTracking()
-        //            .AsQueryable();
-
-        //        if (type.HasValue)
-        //        {
-        //            query = query.Where(s => (int)s.Type == type.Value);
-        //        }
-
-        //        if (!string.IsNullOrEmpty(searchTitleOrAddres))
-        //        {
-        //            query = query.Where(s => EF.Functions.Like(s.Name, $"%{searchTitleOrAddres}") || EF.Functions.Like(s.Location.Address, $"%{searchTitleOrAddres}"));
-        //        }
-
-        //        if(date.date)
-
-
-
-        //        var sportFild = await query.ToListAsync();
-        //        _logger.LogInformation("Successfully fetched filtered sportFild");
-        //        return sportFild;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error occurred while fetching filtered sport Fild");
-        //        throw;
-        //    }
-        //}
     }
 }

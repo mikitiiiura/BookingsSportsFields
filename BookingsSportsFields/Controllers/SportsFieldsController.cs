@@ -221,6 +221,19 @@ public async Task<IActionResult> UpdateImage(Guid id, IFormFile imageFile)
     }
 }
 
+[HttpDelete("delete-sport-fields/{id}")]
+public async Task<IActionResult> DeleteSportsField(Guid id)
+{
+    var isDeleted = await _sportFildService.DeleteAsync(id);
+    
+    if (!isDeleted)
+    {
+        return NotFound(new { Message = "Майданчик не знайдено або він уже видалений" });
+    }
+
+    return Ok(new { Message = "Успішно видалено майданчик" });
+}
+
         
         public class CreateSportsFieldDto
         {

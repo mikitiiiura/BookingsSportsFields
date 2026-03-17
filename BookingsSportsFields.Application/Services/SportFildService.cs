@@ -114,6 +114,12 @@ namespace BookingsSportsFields.Application.Services
 
             return newUrl;
         }
+
+        public async Task<bool> DeleteAsync(Guid sportFieldId)
+        {
+            // Повертаємо результат операції вище
+            return await _sportsFieldsRepository.Delete(sportFieldId);
+        }
     }
 }
 

@@ -56,5 +56,7 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         public List<BookingsEntity> Bookings { get; set; } = [];
         
         public List<SportsFieldSportTypeEntity> TypesWithDetails  { get; set; } = [];
+        
+        public bool IsDeleted { get; set; } = false;
     }
 }

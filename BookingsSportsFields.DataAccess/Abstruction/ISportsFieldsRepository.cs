@@ -23,5 +23,6 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task SaveChangesAsync();
 
         Task UpdateImageUrlAsync(Guid id, string newImageUrl);
+        Task<bool> Delete(Guid id);
     }
 }

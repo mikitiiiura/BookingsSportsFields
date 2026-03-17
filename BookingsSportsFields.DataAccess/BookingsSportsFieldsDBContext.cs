@@ -42,6 +42,9 @@ namespace BookingsSportsFields.DataAccess
             modelBuilder.ApplyConfiguration(new SportsFieldScheduleConfiguration());
 
             //modelBuilder.ApplyConfiguration(new UserConfiguration());
+            
+            // Можна додати тут через загальний Entity інтерфейс
+            modelBuilder.Entity<SportsFieldsEntity>().HasQueryFilter(sf => !sf.IsDeleted);
 
             modelBuilder.HasDefaultSchema("identity");
         }

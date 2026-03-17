@@ -17,6 +17,7 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task UpdateAsync(UpdateSportsFieldDto dto);
 
         Task<string> UpdateSportsFieldImageAsync(Guid id, IFormFile imageFile);
+        Task<bool> DeleteAsync(Guid sportFieldId);
 
     }
 }
