@@ -40,6 +40,7 @@ namespace BookingsSportsFields.DataAccess
             modelBuilder.ApplyConfiguration(new SportsFieldsConfiguration());
             modelBuilder.ApplyConfiguration(new SportsFieldSportTypeConfiguration());
             modelBuilder.ApplyConfiguration(new SportsFieldScheduleConfiguration());
+            modelBuilder.ApplyConfiguration(new SportsFieldInstanceConfiguration());
 
             //modelBuilder.ApplyConfiguration(new UserConfiguration());
             

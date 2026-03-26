@@ -15,9 +15,15 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task<List<BookingsEntity>> GetAllByUserID(Guid userId);
 
         Task<List<BookingsRepository.TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date,
-            SportFieldsType sportType);
+            SportFieldsType sportType, Guid? instanceId = null);
 
-        Task<bool> IsFieldAvailable(Guid sportsFieldId, DateTime startTime, DateTime endTime, SportFieldsType sportType, Guid? excludeBookingId = null);
+        Task<bool> IsFieldAvailable(
+            Guid sportsFieldId,
+            DateTime startTime,
+            DateTime endTime,
+            SportFieldsType sportType,
+            Guid? instanceId = null,          // ★★★
+            Guid? excludeBookingId = null);
         Task Update(BookingsEntity bookings);
         Task UpdateStatus(Guid id, BookingStatus status);
         Task DeleteBookingsOlderThanAsync(DateTime thresholdDate);

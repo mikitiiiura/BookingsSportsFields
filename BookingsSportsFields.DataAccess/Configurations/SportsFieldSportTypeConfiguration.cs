@@ -22,6 +22,7 @@ public class SportsFieldSportTypeConfiguration : IEntityTypeConfiguration<Sports
         builder.Property(t => t.WarningInformation)
             .HasMaxLength(255);
 
+        // Каскад на майданчик — якщо майданчик видаляється, типи теж
         builder.HasOne(t => t.SportsField)
             .WithMany(sf => sf.TypesWithDetails)
             .HasForeignKey(t => t.SportsFieldId)
@@ -30,6 +31,12 @@ public class SportsFieldSportTypeConfiguration : IEntityTypeConfiguration<Sports
         builder.HasMany(t => t.WeeklySchedules)
             .WithOne(s => s.SportTypeDetail)
             .HasForeignKey(s => s.SportsFieldSportTypeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Каскад на інстанси — якщо тип видаляється, інстанси теж
+        builder.HasMany(t => t.Instances)
+            .WithOne(i => i.SportType)
+            .HasForeignKey(i => i.SportTypeId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

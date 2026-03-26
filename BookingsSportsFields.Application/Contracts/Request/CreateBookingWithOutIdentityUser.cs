@@ -13,6 +13,7 @@ namespace BookingsSportsFields.Application.Contracts.Request
     public record CreateBookingRequest
     (
     [Required] Guid SportFieldId,
+    Guid? SportsFieldInstanceId,     // ← НОВЕ
     [StringLength(255)] string? Comment,
     [Required] SportFieldsType SportType,
     [Required] DateTime StartTime,

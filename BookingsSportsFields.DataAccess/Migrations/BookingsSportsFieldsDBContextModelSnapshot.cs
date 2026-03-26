@@ -74,6 +74,9 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Property<Guid>("SportsFieldId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("SportsFieldInstanceId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("datetime2");
 
@@ -93,6 +96,8 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .HasFilter("[ReviewsId] IS NOT NULL");
 
                     b.HasIndex("SportsFieldId");
+
+                    b.HasIndex("SportsFieldInstanceId");
 
                     b.HasIndex("UserId");
 
@@ -226,6 +231,37 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Reviews", "identity");
+                });
+
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldInstanceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<Guid>("SportTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SportsFieldId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SportTypeId");
+
+                    b.HasIndex("SportsFieldId");
+
+                    b.ToTable("SportsFieldInstances", "identity");
                 });
 
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSchedule", b =>
@@ -559,6 +595,11 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldInstanceEntity", "SportsFieldInstance")
+                        .WithMany("Bookings")
+                        .HasForeignKey("SportsFieldInstanceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.UserEntity", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -568,6 +609,8 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Navigation("Reviews");
 
                     b.Navigation("SportsField");
+
+                    b.Navigation("SportsFieldInstance");
 
                     b.Navigation("User");
                 });
@@ -617,6 +660,24 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Navigation("SportsField");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldInstanceEntity", b =>
+                {
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", "SportType")
+                        .WithMany("Instances")
+                        .HasForeignKey("SportTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", "SportsField")
+                        .WithMany("Instances")
+                        .HasForeignKey("SportsFieldId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("SportType");
+
+                    b.Navigation("SportsField");
                 });
 
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSchedule", b =>
@@ -702,14 +763,23 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldInstanceEntity", b =>
+                {
+                    b.Navigation("Bookings");
+                });
+
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldSportTypeEntity", b =>
                 {
+                    b.Navigation("Instances");
+
                     b.Navigation("WeeklySchedules");
                 });
 
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", b =>
                 {
                     b.Navigation("Bookings");
+
+                    b.Navigation("Instances");
 
                     b.Navigation("Location")
                         .IsRequired();

@@ -142,19 +142,38 @@ namespace BookingsSportsFields.Controllers
         }
 
         // BookingController.cs
-        [HttpGet("available-slots/{sportsFieldId}/{date}/{sportType}")]
+        // [HttpGet("available-slots/{sportsFieldId}/{date}/{sportType}")]
+        // public async Task<ActionResult<List<TimeSlot>>> GetAvailableTimeSlots(
+        //     Guid sportsFieldId, 
+        //     DateTime date, 
+        //     int sportType)
+        // {
+        //     try
+        //     {
+        //         var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date, sportType);
+        //         return Ok(slots);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         return BadRequest(ex.Message);
+        //     }
+        // }
+        [HttpGet("available-slots/{sportsFieldId}/{date}/{sportType}/{instanceId?}")]
         public async Task<ActionResult<List<TimeSlot>>> GetAvailableTimeSlots(
             Guid sportsFieldId, 
             DateTime date, 
-            int sportType)
+            int sportType,
+            Guid? instanceId = null)
         {
             try
             {
-                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date, sportType);
+                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date, sportType, instanceId);
+                _logger.LogInformation("Повернуто {Count} слотів", slots.Count);
                 return Ok(slots);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Помилка слотів");
                 return BadRequest(ex.Message);
             }
         }
@@ -179,11 +198,8 @@ namespace BookingsSportsFields.Controllers
         public async Task<ActionResult<bool>> CheckAvailability([FromBody] CheckAvailabilityRequest request)
         {
             _logger.LogInformation(
-                "CheckAvailability запит: FieldId={FieldId}, Start={Start}, Duration={Duration} хв, SportType={SportType}",
-                request.SportsFieldId,
-                request.StartTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                request.DurationMinutes,
-                request.SportType
+                "CheckAvailability: Field={FieldId}, Instance={InstanceId}, Start={Start}, Duration={Duration}, Type={SportType}",
+                request.SportsFieldId, request.SportsFieldInstanceId, request.StartTime, request.DurationMinutes, request.SportType
             );
 
             try
@@ -192,21 +208,16 @@ namespace BookingsSportsFields.Controllers
                     request.SportsFieldId,
                     request.StartTime,
                     request.DurationMinutes,
-                    request.SportType
+                    request.SportType,
+                    request.SportsFieldInstanceId
                 );
 
-                _logger.LogInformation(
-                    "CheckAvailability результат: {Result} | Запит: {Start} → {End}",
-                    isAvailable,
-                    request.StartTime.ToString("HH:mm"),
-                    request.StartTime.AddMinutes(request.DurationMinutes).ToString("HH:mm")
-                );
-
+                _logger.LogInformation("Результат: {Result}", isAvailable);
                 return Ok(isAvailable);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Помилка в CheckAvailability: {Message}", ex.Message);
+                _logger.LogError(ex, "Помилка перевірки");
                 return BadRequest(ex.Message);
             }
         }
@@ -236,6 +247,7 @@ namespace BookingsSportsFields.Controllers
         public Guid SportsFieldId { get; set; }
         public DateTime StartTime { get; set; }
         public int DurationMinutes { get; set; }
-        public int SportType { get; set; }   // <-- ДОДАНО
+        public int SportType { get; set; }
+        public Guid? SportsFieldInstanceId { get; set; }  // ← ДОДАЙ ЦЕ ПОЛЕ
     }
 }

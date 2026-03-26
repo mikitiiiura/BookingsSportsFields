@@ -53,6 +53,10 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// Спортивний майданчик
         /// </summary>
         public SportsFieldsEntity SportsField { get; set; } = null!; 
+        
+        public Guid? SportsFieldInstanceId { get; set; }           // ← НОВЕ
+        
+        public SportsFieldInstanceEntity? SportsFieldInstance { get; set; }   // ← НОВЕ
 
         public Guid? ReviewsId { get; set; }
 

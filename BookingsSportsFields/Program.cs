@@ -27,9 +27,13 @@ builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationSche
 
 
 var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext");
-builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
-    options.UseSqlServer(connectionString));
+// builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
+//     options.UseSqlServer(connectionString));
 
+builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
+    options.UseSqlServer(connectionString)
+        .EnableSensitiveDataLogging()
+        .EnableDetailedErrors());
 
 builder.Services.AddIdentityCore<UserEntity>()
     .AddRoles<IdentityRole<Guid>>() // Додаємо ролі з Guid

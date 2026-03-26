@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq.Expressions;
 using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
@@ -18,68 +19,70 @@ namespace BookingsSportsFields.DataAccess.Repositories
         }
 
         // 1. Оновлений IsFieldAvailable (тепер з типом спорту)
-        public async Task<bool> IsFieldAvailable(
-            Guid sportsFieldId,
-            DateTime startTime,
-            DateTime endTime,
-            SportFieldsType sportType,
-            Guid? excludeBookingId = null)
+      public async Task<bool> IsFieldAvailable(
+    Guid sportsFieldId,
+    DateTime startTime,
+    DateTime endTime,
+    SportFieldsType sportType,
+    Guid? instanceId = null,
+    Guid? excludeBookingId = null)
+{
+    const int bufferMinutes = 15;
+
+    var query = _dBContext.Bookings
+        .Where(b => b.SportsFieldId == sportsFieldId &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.SportType == sportType);
+
+    if (instanceId.HasValue)
+    {
+        query = query.Where(b => b.SportsFieldInstanceId == instanceId.Value);
+        _logger.LogInformation("Фільтр IsFieldAvailable по instanceId: {InstanceId}", instanceId);
+    }
+    else
+    {
+        _logger.LogInformation("IsFieldAvailable без instanceId — весь тип");
+    }
+
+    if (excludeBookingId.HasValue)
+    {
+        query = query.Where(b => b.Id != excludeBookingId.Value);
+    }
+
+    var bookings = await query.ToListAsync();
+
+    _logger.LogInformation(
+        "Перевірка: {Start} → {End} (buffer +{Buffer} хв), бронювань: {Count}, Instance: {InstanceId}",
+        startTime.ToString("HH:mm"), endTime.ToString("HH:mm"), bufferMinutes, bookings.Count, instanceId
+    );
+
+    bool hasConflict = false;
+
+    foreach (var b in bookings)
+    {
+        var existingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
+
+        bool conflict = startTime < existingEffectiveEnd && b.StartTime < endTime;
+
+        if (conflict)
         {
-            const int bufferMinutes = 15;
-
-            var query = _dBContext.Bookings
-                .Where(b => b.SportsFieldId == sportsFieldId &&
-                            b.Status != BookingStatus.Cancelled &&
-                            b.SportType == sportType);
-
-            if (excludeBookingId.HasValue)
-            {
-                query = query.Where(b => b.Id != excludeBookingId.Value);
-            }
-
-            // Матеріалізуємо список, щоб можна було логувати деталі
-            var bookings = await query.ToListAsync();
-
-            _logger.LogInformation(
-                "Перевірка доступності: {Start} → {End} (buffer +{Buffer} хв), бронювань знайдено: {Count}",
-                startTime.ToString("yyyy-MM-dd HH:mm"),
-                endTime.ToString("yyyy-MM-dd HH:mm"),
-                bufferMinutes,
-                bookings.Count
+            _logger.LogWarning(
+                "КОНФЛІКТ! Нове: {NewStart} → {NewEnd} | Існуюче: {ExistStart} → {ExistEnd} (eff end: {EffEnd}), Instance: {InstId}",
+                startTime.ToString("HH:mm"),
+                endTime.ToString("HH:mm"),
+                b.StartTime.ToString("HH:mm"),
+                b.EndTime.ToString("HH:mm"),
+                existingEffectiveEnd.ToString("HH:mm"),
+                b.SportsFieldInstanceId
             );
-
-            bool hasConflict = false;
-
-            foreach (var b in bookings)
-            {
-                var existingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
-
-                bool conflict =
-                    startTime < existingEffectiveEnd &&
-                    b.StartTime < endTime;
-
-                if (conflict)
-                {
-                    _logger.LogWarning(
-                        "КОНФЛІКТ виявлено! " +
-                        "Нове бронювання: {NewStart} → {NewEnd} | " +
-                        "Існуюче: {ExistStart} → {ExistEnd} (effective end: {EffEnd}) | " +
-                        "Причина: startTime < EffEnd && ExistStart < endTime",
-                        startTime.ToString("HH:mm"),
-                        endTime.ToString("HH:mm"),
-                        b.StartTime.ToString("HH:mm"),
-                        b.EndTime.ToString("HH:mm"),
-                        existingEffectiveEnd.ToString("HH:mm")
-                    );
-                    hasConflict = true;
-                    // можна break, якщо не потрібно перевіряти всі
-                }
-            }
-
-            _logger.LogInformation("Результат перевірки: {Result}", !hasConflict ? "ДОСТУПНО" : "ЗАЙНЯТО");
-
-            return !hasConflict;
+            hasConflict = true;
         }
+    }
+
+    _logger.LogInformation("Результат: {Result}", !hasConflict ? "ДОСТУПНО" : "ЗАЙНЯТО");
+
+    return !hasConflict;
+}
         
         /// <summary>
         /// We will delete this method but it is for test
@@ -111,6 +114,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
                             b.SportsFieldId == sportField &&
                             b.StartTime <= endOfDay && 
                             b.EndTime >= startOfDay)
+                .Include(b => b.SportsFieldInstance)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
                 // .ThenInclude(sf => sf.Location)
@@ -139,18 +143,20 @@ namespace BookingsSportsFields.DataAccess.Repositories
         // 3. Оновлений AddAsync (використовує новий IsFieldAvailable)
         public async Task<Guid> AddAsync(BookingsEntity bookings)
         {
-            _logger.LogInformation("Adding new booking: {BookingsId} for SportType: {SportType}", bookings.Id, bookings.SportType);
+            _logger.LogInformation("Adding new booking: ID={Id}, Type={Type}, Instance={InstanceId}",
+                bookings.Id, bookings.SportType, bookings.SportsFieldInstanceId);
 
             bool isAvailable = await IsFieldAvailable(
-                bookings.SportsFieldId, 
-                bookings.StartTime, 
-                bookings.EndTime, 
-                bookings.SportType);   // <-- передаємо тип
+                bookings.SportsFieldId,
+                bookings.StartTime,
+                bookings.EndTime,
+                bookings.SportType,
+                bookings.SportsFieldInstanceId   // ← передаємо!
+            );
 
             if (!isAvailable)
             {
-                _logger.LogWarning("Field is not available for booking ID: {BookingsId} (SportType {SportType})", bookings.Id, bookings.SportType);
-                throw new Exception("The field is not available at the requested time for this sport type");
+                throw new Exception("The field is not available at the requested time for this sport type and instance");
             }
 
             await _dBContext.Bookings.AddAsync(bookings);
@@ -228,59 +234,81 @@ namespace BookingsSportsFields.DataAccess.Repositories
         /// <param name="date"></param>
         /// <returns></returns>
         // 2. Оновлений GetAvailableTimeSlots (тепер з типом)
-        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, SportFieldsType sportType)
+       public async Task<List<TimeSlot>> GetAvailableTimeSlots(
+    Guid sportsFieldId,
+    DateTime date,
+    SportFieldsType sportType,
+    Guid? instanceId = null)
+{
+    _logger.LogInformation("Запит слотів: Field={FieldId}, Date={Date}, Type={Type}, Instance={InstanceId}",
+        sportsFieldId, date.Date, sportType, instanceId);
+
+    var query = _dBContext.Bookings
+        .Where(b => b.SportsFieldId == sportsFieldId &&
+                    b.StartTime.Date == date.Date &&
+                    b.Status != BookingStatus.Cancelled &&
+                    b.SportType == sportType);
+
+    if (instanceId.HasValue)
+    {
+        query = query.Where(b => b.SportsFieldInstanceId == instanceId.Value);
+        _logger.LogInformation("Фільтр по інстансу: {InstanceId}", instanceId);
+    }
+    else
+    {
+        _logger.LogInformation("Без фільтра інстансу — весь тип");
+    }
+
+    var bookings = await query
+        .OrderBy(b => b.StartTime)
+        .AsNoTracking()
+        .ToListAsync();
+
+    _logger.LogInformation("Знайдено бронювань після фільтра: {Count}", bookings.Count);
+
+    const int slotDurationMinutes = 60;      // 1 година
+    const int bufferMinutes = 30;            // 30 хв перерва між бронюваннями
+
+    TimeSpan openingTime = new TimeSpan(8, 0, 0);
+    TimeSpan closingTime = new TimeSpan(22, 0, 0);
+
+    var availableSlots = new List<TimeSlot>();
+    var current = date.Date + openingTime;
+
+    while (current.AddMinutes(slotDurationMinutes) <= date.Date + closingTime)
+    {
+        var slotEnd = current.AddMinutes(slotDurationMinutes);
+
+        bool isAvailable = !bookings.Any(b =>
         {
-            _logger.LogInformation("Fetching available time slots for {SportsFieldId} on {Date} type {SportType}", sportsFieldId, date.Date, sportType);
+            var bookingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
+            return
+                (current < bookingEffectiveEnd && current >= b.StartTime) ||
+                (b.StartTime < slotEnd && b.EndTime > current);
+        });
 
-            var bookings = await _dBContext.Bookings
-                .Where(b => b.SportsFieldId == sportsFieldId &&
-                            b.StartTime.Date == date.Date &&
-                            b.Status != BookingStatus.Cancelled &&
-                            b.SportType == sportType)
-                .OrderBy(b => b.StartTime)
-                .AsNoTracking()
-                .ToListAsync();
-
-            const int bufferMinutes = 15; // повертаємо буфер сюди
-            TimeSpan openingTime = new TimeSpan(8, 0, 0);
-            TimeSpan closingTime = new TimeSpan(22, 0, 0);
-            TimeSpan slotDuration = new TimeSpan(0, 30, 0);
-
-            var availableSlots = new List<TimeSlot>();
-            var current = date.Date + openingTime;
-
-            while (current + slotDuration <= date.Date + closingTime)
+        if (isAvailable)
+        {
+            availableSlots.Add(new TimeSlot
             {
-                var slotEnd = current + slotDuration;
-
-                bool isAvailable = !bookings.Any(b =>
-                {
-                    var bookingEffectiveEnd = b.EndTime.AddMinutes(bufferMinutes);
-                    return
-                        (current < bookingEffectiveEnd && current >= b.StartTime) ||
-                        (b.StartTime < slotEnd && b.EndTime > current);
-                });
-
-                if (isAvailable)
-                {
-                    availableSlots.Add(new TimeSlot
-                    {
-                        StartTime = current,
-                        EndTime = slotEnd
-                    });
-                }
-
-                current = slotEnd;
-            }
-
-            return availableSlots;
+                StartTime = current,
+                EndTime = slotEnd
+            });
         }
 
+        // Переходимо на наступний можливий слот (з перервою)
+        current = slotEnd.AddMinutes(bufferMinutes);
+    }
+
+    return availableSlots;
+}
+        
 
         public class TimeSlot
         {
             public DateTime StartTime { get; set; }
             public DateTime EndTime { get; set; }
+            public List<string> FreeInstanceNames { get; set; } = new(); // ★★★
         }
 
 

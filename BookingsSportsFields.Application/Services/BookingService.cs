@@ -64,7 +64,6 @@ namespace BookingsSportsFields.Application.Services
         /// <returns></returns>
         public async Task<Guid> CreateBookingAsync(CreateBookingRequest request)
         {
-
             var startTime = DateTime.SpecifyKind(request.StartTime, DateTimeKind.Utc);
             var endTime = startTime.AddMinutes(request.DurationMinutes);
 
@@ -72,15 +71,32 @@ namespace BookingsSportsFields.Application.Services
             {
                 Id = Guid.NewGuid(),
                 SportsFieldId = request.SportFieldId,
+                SportsFieldInstanceId = request.SportsFieldInstanceId,   // ★★★ вже є
                 Comment = request.Comment,
                 SportType = request.SportType,
-                StartTime = request.StartTime,
+                StartTime = startTime,
                 EndTime = endTime,
                 Status = BookingStatus.Pending,
                 TotalPrice = request.TotalPrice,
                 UserId = request.UserId,
                 CreatedAt = DateTime.UtcNow
             };
+
+            // ★★★ Перевірка доступності З instanceId ★★★
+            bool isAvailable = await _bookingsRepository.IsFieldAvailable(
+                booking.SportsFieldId,
+                booking.StartTime,
+                booking.EndTime,
+                booking.SportType,
+                booking.SportsFieldInstanceId   // ← це ключове!
+            );
+
+            if (!isAvailable)
+            {
+                _logger.LogWarning("Field not available: ID={Id}, Type={Type}, Instance={Instance}",
+                    booking.Id, booking.SportType, booking.SportsFieldInstanceId);
+                throw new Exception("The field is not available at the requested time for this sport type and instance");
+            }
 
             await _bookingsRepository.AddAsync(booking);
             return booking.Id;
@@ -126,15 +142,26 @@ namespace BookingsSportsFields.Application.Services
             await _bookingsRepository.AddAsync(booking);
             return booking.Id;
         }
-        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, int sportType)
+        public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, int sportType, Guid? instanceId = null)
         {
-            return await _bookingsRepository.GetAvailableTimeSlots(sportsFieldId, date, (SportFieldsType)sportType);
+            return await _bookingsRepository.GetAvailableTimeSlots(sportsFieldId, date, (SportFieldsType)sportType, instanceId);
         }
 
-        public async Task<bool> CheckAvailability(Guid sportsFieldId, DateTime startTime, int durationMinutes, int sportType)
+        public async Task<bool> CheckAvailability(
+            Guid sportsFieldId,
+            DateTime startTime,
+            int durationMinutes,
+            int sportType,
+            Guid? instanceId = null)  // ← вже є, але перевір
         {
             DateTime endTime = startTime.AddMinutes(durationMinutes);
-            return await _bookingsRepository.IsFieldAvailable(sportsFieldId, startTime, endTime, (SportFieldsType)sportType);
+            return await _bookingsRepository.IsFieldAvailable(
+                sportsFieldId,
+                startTime,
+                endTime,
+                (SportFieldsType)sportType,
+                instanceId  // ← передаємо instanceId
+            );
         }
         public async Task DeleteOldBookingsAsync(DateTime thresholdDate)
         {

@@ -24,5 +24,8 @@ namespace BookingsSportsFields.DataAccess.Abstruction
 
         Task UpdateImageUrlAsync(Guid id, string newImageUrl);
         Task<bool> Delete(Guid id);
+        Task ReplaceTypesAndSchedulesAndInstancesAsync(Guid sportsFieldId, List<SportsFieldSportTypeEntity> newTypes);
+        Task UpdateBasicFieldsAsync(Guid id, string? name, string? description, string? imageUrl);
+        Task<SportsFieldsEntity?> GetByIdWithTrackingAsync(Guid id);
     }
 }

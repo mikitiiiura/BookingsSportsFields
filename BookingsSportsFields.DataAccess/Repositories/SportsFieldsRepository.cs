@@ -30,11 +30,14 @@ namespace BookingsSportsFields.DataAccess.Repositories
         {
             _logger.LogInformation("Fetching all sport field");
             return await _dBContext.SportsFields
+                .Where(s => !s.IsDeleted) 
                 .Include(sf => sf.TypesWithDetails)
                 .ThenInclude(t => t.WeeklySchedules)
-                .Include(sf => sf.Owner) // Навігаційна властивість
-                .Include(sf => sf.Location) // Навігаційна властивість
-                //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
+                .Include(sf => sf.TypesWithDetails)          // ← вже є
+                .ThenInclude(t => t.Instances)           // ← додаємо це (якщо ще немає)
+                .Include(sf => sf.Owner)
+                .Include(sf => sf.Location)
+                //.Include(sf => sf.Images)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -48,11 +51,13 @@ namespace BookingsSportsFields.DataAccess.Repositories
         {
             return await _dBContext.SportsFields
                 .Where(sp => sp.OwnerId == ownerId)
-                .Include(sf => sf.Location) // Навігаційна властивість
+                .Include(sf => sf.Location)
                 .Include(sf => sf.TypesWithDetails)
                 .ThenInclude(t => t.WeeklySchedules)
-                .Include(sf => sf.Owner) // Навігаційна властивість
-                                         //.Include(sf => sf.Images) // Якщо потрібно отримати зображення майданчика
+                .Include(sf => sf.TypesWithDetails)          // ← вже є
+                .ThenInclude(t => t.Instances)           // ← додаємо це
+                .Include(sf => sf.Owner)
+                //.Include(sf => sf.Images)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -102,78 +107,102 @@ namespace BookingsSportsFields.DataAccess.Repositories
         //     await _dBContext.SaveChangesAsync();
         //     }
         
-       public async Task UpdateAsync(SportsFieldsEntity entity)
-{
-    _logger.LogInformation("Оновлення майданчика в репозиторії ID: {Id}", entity.Id);
-
-    try
-    {
-        // Отримуємо свіжий стан з БД (щоб уникнути кешу EF з старими Id)
-        var existing = await _dBContext.SportsFields
-            .Include(sf => sf.TypesWithDetails)
-                .ThenInclude(t => t.WeeklySchedules)
-            .FirstOrDefaultAsync(sf => sf.Id == entity.Id);
-
-        if (existing == null)
+        public async Task UpdateAsync(SportsFieldsEntity entity)
         {
-            _logger.LogWarning("Майданчик не знайдено: {Id}", entity.Id);
-            throw new KeyNotFoundException($"SportsField {entity.Id} not found");
-        }
+            _logger.LogInformation("=== ОНОВЛЕННЯ В РЕПОЗИТОРІЇ ===");
+            _logger.LogInformation("ID: {Id} | Стан трекінгу перед SaveChanges: {State}", 
+                entity.Id, _dBContext.Entry(entity).State);
 
-        // Оновлюємо базові поля
-        existing.Name = entity.Name;
-        existing.Description = entity.Description;
-        existing.ImageUrl = entity.ImageUrl;
-        // CreatedAt, OwnerId, Location — НЕ чіпаємо
-
-        // Повна заміна типів та розкладів
-        if (entity.TypesWithDetails != null && entity.TypesWithDetails.Any())
-        {
-            // Видаляємо старі типи (каскадно видаляться розклади)
-            _dBContext.SportsFieldSportTypes.RemoveRange(existing.TypesWithDetails);
-
-            // Очищаємо колекцію в пам'яті
-            existing.TypesWithDetails.Clear();
-
-            // Додаємо нові типи з новими Id (EF зробить INSERT)
-            foreach (var newType in entity.TypesWithDetails)
+            try
             {
-                var typeEntity = new SportsFieldSportTypeEntity
-                {
-                    Id = Guid.NewGuid(),
-                    Type = newType.Type,
-                    PricePerHour = newType.PricePerHour,
-                    WarningInformation = newType.WarningInformation ?? "",
-                    WeeklySchedules = newType.WeeklySchedules.Select(ws => new SportsFieldSchedule
-                    {
-                        Id = Guid.NewGuid(),
-                        DayOfWeek = ws.DayOfWeek,
-                        AvailableFrom = ws.AvailableFrom,
-                        AvailableTo = ws.AvailableTo
-                    }).ToList()
-                };
+                // НЕ викликаємо Update() ще раз — сутність вже відстежується!
+                await _dBContext.SaveChangesAsync();
 
-                existing.TypesWithDetails.Add(typeEntity);
+                _logger.LogInformation("Оновлення УСПІШНО завершено для ID: {Id}", entity.Id);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogError(ex, "Concurrency exception для {Id}", entity.Id);
+                throw new Exception("Конфлікт даних — майданчик міг бути змінений іншим користувачем", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Помилка збереження для {Id}: {Message}", entity.Id, ex.Message);
+                throw;
             }
         }
-
-        // Оновлюємо сутність (EF зробить UPDATE базових + INSERT нових типів/розкладів)
-        _dBContext.SportsFields.Update(existing);
-        await _dBContext.SaveChangesAsync();
-
-        _logger.LogInformation("Оновлення успішно завершено для ID: {Id}", entity.Id);
-    }
-    catch (DbUpdateConcurrencyException ex)
-    {
-        _logger.LogError(ex, "Concurrency помилка при оновленні майданчика {Id}", entity.Id);
-        throw new Exception("Конфлікт даних — майданчик міг бути змінений іншим користувачем", ex);
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Помилка оновлення майданчика {Id}: {Message}", entity.Id, ex.Message);
-        throw;
-    }
-}
+//        public async Task UpdateAsync(SportsFieldsEntity entity)
+// {
+//     _logger.LogInformation("Оновлення майданчика в репозиторії ID: {Id}", entity.Id);
+//
+//     try
+//     {
+//         // Отримуємо свіжий стан з БД (щоб уникнути кешу EF з старими Id)
+//         var existing = await _dBContext.SportsFields
+//             .Include(sf => sf.TypesWithDetails)
+//                 .ThenInclude(t => t.WeeklySchedules)
+//             .FirstOrDefaultAsync(sf => sf.Id == entity.Id);
+//
+//         if (existing == null)
+//         {
+//             _logger.LogWarning("Майданчик не знайдено: {Id}", entity.Id);
+//             throw new KeyNotFoundException($"SportsField {entity.Id} not found");
+//         }
+//
+//         // Оновлюємо базові поля
+//         existing.Name = entity.Name;
+//         existing.Description = entity.Description;
+//         existing.ImageUrl = entity.ImageUrl;
+//         // CreatedAt, OwnerId, Location — НЕ чіпаємо
+//
+//         // Повна заміна типів та розкладів
+//         if (entity.TypesWithDetails != null && entity.TypesWithDetails.Any())
+//         {
+//             // Видаляємо старі типи (каскадно видаляться розклади)
+//             _dBContext.SportsFieldSportTypes.RemoveRange(existing.TypesWithDetails);
+//
+//             // Очищаємо колекцію в пам'яті
+//             existing.TypesWithDetails.Clear();
+//
+//             // Додаємо нові типи з новими Id (EF зробить INSERT)
+//             foreach (var newType in entity.TypesWithDetails)
+//             {
+//                 var typeEntity = new SportsFieldSportTypeEntity
+//                 {
+//                     Id = Guid.NewGuid(),
+//                     Type = newType.Type,
+//                     PricePerHour = newType.PricePerHour,
+//                     WarningInformation = newType.WarningInformation ?? "",
+//                     WeeklySchedules = newType.WeeklySchedules.Select(ws => new SportsFieldSchedule
+//                     {
+//                         Id = Guid.NewGuid(),
+//                         DayOfWeek = ws.DayOfWeek,
+//                         AvailableFrom = ws.AvailableFrom,
+//                         AvailableTo = ws.AvailableTo
+//                     }).ToList()
+//                 };
+//
+//                 existing.TypesWithDetails.Add(typeEntity);
+//             }
+//         }
+//
+//         // Оновлюємо сутність (EF зробить UPDATE базових + INSERT нових типів/розкладів)
+//         _dBContext.SportsFields.Update(existing);
+//         await _dBContext.SaveChangesAsync();
+//
+//         _logger.LogInformation("Оновлення успішно завершено для ID: {Id}", entity.Id);
+//     }
+//     catch (DbUpdateConcurrencyException ex)
+//     {
+//         _logger.LogError(ex, "Concurrency помилка при оновленні майданчика {Id}", entity.Id);
+//         throw new Exception("Конфлікт даних — майданчик міг бути змінений іншим користувачем", ex);
+//     }
+//     catch (Exception ex)
+//     {
+//         _logger.LogError(ex, "Помилка оновлення майданчика {Id}: {Message}", entity.Id, ex.Message);
+//         throw;
+//     }
+// }
        
 // Новий метод — оновлює ТІЛЬКИ ImageUrl, не чіпає типи
 public async Task UpdateImageUrlAsync(Guid id, string newImageUrl)
@@ -192,13 +221,84 @@ public async Task UpdateImageUrlAsync(Guid id, string newImageUrl)
     _logger.LogInformation("ImageUrl оновлено для майданчика {Id}: {NewUrl}", id, newImageUrl);
 }
        
-       
+
+// Для читання (наприклад, у ChooseFildAdmin) — без трекінгу, швидко
 public async Task<SportsFieldsEntity?> GetByIdWithDetailsAsync(Guid id)
 {
     return await _dBContext.SportsFields
+        .AsNoTracking()
         .Include(sf => sf.TypesWithDetails)
         .ThenInclude(t => t.WeeklySchedules)
+        .Include(sf => sf.TypesWithDetails)
+        .ThenInclude(t => t.Instances)
+        .Include(sf => sf.Location)
+        .Include(sf => sf.Owner)
         .FirstOrDefaultAsync(sf => sf.Id == id);
+}
+
+// НОВИЙ метод — спеціально для Update (з трекінгом!)
+        public async Task<SportsFieldsEntity?> GetByIdWithTrackingAsync(Guid id)
+        {
+            return await _dBContext.SportsFields
+                .AsSplitQuery()   // ← додаємо
+                .Include(sf => sf.TypesWithDetails)
+                .ThenInclude(t => t.WeeklySchedules)
+                .Include(sf => sf.TypesWithDetails)
+                .ThenInclude(t => t.Instances)
+                .Include(sf => sf.Location)
+                .Include(sf => sf.Owner)
+                .FirstOrDefaultAsync(sf => sf.Id == id);
+        }
+       
+// public async Task<SportsFieldsEntity?> GetByIdWithDetailsAsync(Guid id)
+// {
+//     return await _dBContext.SportsFields
+//         .AsNoTracking()                              // ← Додаємо це!
+//         .Include(sf => sf.TypesWithDetails)
+//         .ThenInclude(t => t.WeeklySchedules)
+//         .Include(sf => sf.TypesWithDetails)
+//         .ThenInclude(t => t.Instances)
+//         .Include(sf => sf.Location)
+//         .Include(sf => sf.Owner)
+//         .FirstOrDefaultAsync(sf => sf.Id == id);
+// }
+public async Task ReplaceTypesAndSchedulesAndInstancesAsync(Guid sportsFieldId, List<SportsFieldSportTypeEntity> newTypes)
+{
+    // видаляємо старі — без відстеження
+    var oldTypes = await _dBContext.SportsFieldSportTypes
+        .AsNoTracking()                          // ← Додаємо це!
+        .Where(t => t.SportsFieldId == sportsFieldId)
+        .Include(t => t.Instances)
+        .ToListAsync();
+
+    // Видаляємо по Id (без відстеження сутності)
+    var idsToDelete = oldTypes.Select(t => t.Id).ToList();
+    if (idsToDelete.Any())
+    {
+        _dBContext.SportsFieldSportTypes
+            .Where(t => idsToDelete.Contains(t.Id))
+            .ExecuteDelete();                    // ← Використовуємо ExecuteDelete — швидко і без конфліктів
+    }
+
+    // Додаємо нові
+    foreach (var type in newTypes)
+    {
+        type.SportsFieldId = sportsFieldId;
+        foreach (var inst in type.Instances)
+        {
+            inst.SportTypeId = type.Id;
+            inst.SportsFieldId = sportsFieldId;  // ← додай це, якщо в моделі є FK на SportsField
+        }
+
+        _dBContext.SportsFieldSportTypes.Add(type);
+    }
+
+    _logger.LogInformation("Замінюємо типи для майданчика {Id}. Нова кількість типів: {Count}, інстансів загалом: {InstCount}",
+        sportsFieldId,
+        newTypes.Count,
+        newTypes.Sum(t => t.Instances.Count));
+
+    await _dBContext.SaveChangesAsync();
 }
 
 public async Task ReplaceTypesAndSchedulesAsync(Guid sportsFieldId, List<SportsFieldSportTypeEntity> newTypes)
@@ -244,8 +344,11 @@ public async Task SaveChangesAsync()
             try
             {
                 var query = _dBContext.SportsFields
+                    .Where(s => !s.IsDeleted) 
                     .Include(sf => sf.TypesWithDetails)
                     .ThenInclude(t => t.WeeklySchedules)
+                    .Include(sf => sf.TypesWithDetails)
+                    .ThenInclude(t => t.Instances)
                     .Include(s => s.Location)
                     .Include(s => s.Owner)
                     .Include(s => s.Bookings)
@@ -321,7 +424,38 @@ public async Task SaveChangesAsync()
                 throw;
             }
         }
+        public async Task UpdateBasicFieldsAsync(Guid id, string? name, string? description, string? imageUrl)
+        {
+            var entity = await _dBContext.SportsFields
+                .FirstOrDefaultAsync(sf => sf.Id == id);
 
+            if (entity == null)
+                throw new KeyNotFoundException($"SportsField {id} not found");
+
+            bool changed = false;
+
+            if (name != null && name != entity.Name)
+            {
+                entity.Name = name;
+                changed = true;
+            }
+            if (description != null && description != entity.Description)
+            {
+                entity.Description = description;
+                changed = true;
+            }
+            if (imageUrl != null && imageUrl != entity.ImageUrl)
+            {
+                entity.ImageUrl = imageUrl;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                _dBContext.SportsFields.Update(entity);
+                await _dBContext.SaveChangesAsync();
+            }
+        }
         
     }
 }

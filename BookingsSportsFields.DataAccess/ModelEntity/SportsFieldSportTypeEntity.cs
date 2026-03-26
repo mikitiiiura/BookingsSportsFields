@@ -19,5 +19,8 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
 
         // Розклад по днях тижня для цього виду спорту на майданчику
         public List<SportsFieldSchedule> WeeklySchedules { get; set; } = new();
+        
+        public ICollection<SportsFieldInstanceEntity> Instances { get; set; } 
+            = new List<SportsFieldInstanceEntity>();
     }
 }

@@ -4,12 +4,12 @@ namespace BookingsSportsFields.Application.Contracts.Request;
 
 public class UpdateSportsFieldDto
 {
-    public Guid Id { get; set; }                    // Обов'язково — щоб знати який майданчик оновлювати
-    public string? Name { get; set; }               // можна не передавати — поле не зміниться
+    public Guid Id { get; set; }
+    public string? Name { get; set; }
     public string? Description { get; set; }
-    public string? ImageUrl { get; set; }           // просто новий URL (наприклад з Cloudinary / S3)
+    public string? ImageUrl { get; set; }
     
-    // Якщо хочеш змінити типи майданчика — передай новий список (старий буде повністю замінено)
+    // ★★★ НОВЕ — тепер підтримує інстанси ★★★
     public List<UpdateSportTypeDetailDto>? Types { get; set; }
 }
 
@@ -17,12 +17,22 @@ public class UpdateSportsFieldDto
 
 public class UpdateSportTypeDetailDto
 {
+    public Guid? Id { get; set; }           // ← Додай
     public SportFieldsType Type { get; set; }
     public double PricePerHour { get; set; }
     public string? WarningInformation { get; set; }
     public List<UpdateWeeklyScheduleDto> WeeklySchedules { get; set; } = new();
+
+    // ★★★ НОВЕ ★★★
+    public int? Quantity { get; set; }
+    public List<UpdateInstanceDto> Instances { get; set; } = new();
 }
 
+public class UpdateInstanceDto
+{
+    public Guid? Id { get; set; }           // null = новий
+    public string DisplayName { get; set; } = string.Empty;
+}
 public class UpdateWeeklyScheduleDto
 {
     public DayOfWeek DayOfWeek { get; set; }

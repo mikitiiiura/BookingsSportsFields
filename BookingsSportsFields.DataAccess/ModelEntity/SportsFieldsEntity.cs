@@ -58,5 +58,8 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         public List<SportsFieldSportTypeEntity> TypesWithDetails  { get; set; } = [];
         
         public bool IsDeleted { get; set; } = false;
+        
+        public ICollection<SportsFieldInstanceEntity> Instances { get; set; } 
+            = new List<SportsFieldInstanceEntity>();
     }
 }
