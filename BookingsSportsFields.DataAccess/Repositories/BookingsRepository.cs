@@ -134,7 +134,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .Include(b => b.SportsField)
                 .ThenInclude(sf => sf.Location)
                 .Include(b => b.SportsField)
-                // .ThenInclude(sf => sf.TypesWithDetails)
+                .ThenInclude(sf => sf.TypesWithDetails)
                 // .ThenInclude(t => t.WeeklySchedules)
                 .AsNoTracking()
                 .ToListAsync();
@@ -471,6 +471,13 @@ namespace BookingsSportsFields.DataAccess.Repositories
             return bookings;
         }
         
+        public async Task<bool> UserHasCompletedBookingAsync(Guid userId, Guid sportsFieldId)
+        {
+            return await _dBContext.Bookings
+                .AnyAsync(b => b.UserId == userId 
+                               && b.SportsFieldId == sportsFieldId 
+                               && b.Status == BookingStatus.Completed);
+        }
 
     }
 

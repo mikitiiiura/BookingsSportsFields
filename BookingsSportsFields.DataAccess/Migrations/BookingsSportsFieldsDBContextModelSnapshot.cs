@@ -207,6 +207,9 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Comment")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -221,12 +224,19 @@ namespace BookingsSportsFields.DataAccess.Migrations
                     b.Property<Guid>("SportsFieldId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("SportsFieldsEntityId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("UserId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BookingId");
+
                     b.HasIndex("SportsFieldId");
+
+                    b.HasIndex("SportsFieldsEntityId");
 
                     b.HasIndex("UserId");
 
@@ -321,6 +331,9 @@ namespace BookingsSportsFields.DataAccess.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<double>("AverageRating")
+                        .HasColumnType("float");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -345,6 +358,9 @@ namespace BookingsSportsFields.DataAccess.Migrations
 
                     b.Property<Guid?>("OwnerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("ReviewCount")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -646,16 +662,26 @@ namespace BookingsSportsFields.DataAccess.Migrations
 
             modelBuilder.Entity("BookingsSportsFields.DataAccess.ModelEntity.ReviewsEntity", b =>
                 {
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.BookingsEntity", "Booking")
+                        .WithMany()
+                        .HasForeignKey("BookingId");
+
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", "SportsField")
                         .WithMany()
                         .HasForeignKey("SportsFieldId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.SportsFieldsEntity", null)
+                        .WithMany("Reviews")
+                        .HasForeignKey("SportsFieldsEntityId");
+
                     b.HasOne("BookingsSportsFields.DataAccess.ModelEntity.UserEntity", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Booking");
 
                     b.Navigation("SportsField");
 
@@ -783,6 +809,8 @@ namespace BookingsSportsFields.DataAccess.Migrations
 
                     b.Navigation("Location")
                         .IsRequired();
+
+                    b.Navigation("Reviews");
 
                     b.Navigation("TypesWithDetails");
                 });

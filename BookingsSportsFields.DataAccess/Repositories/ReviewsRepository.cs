@@ -6,10 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using BookingsSportsFields.DataAccess.Abstruction;
 
 namespace BookingsSportsFields.DataAccess.Repositories
 {
-    public class ReviewsRepository
+    public class ReviewsRepository : IReviewsRepository
     {
         private readonly BookingsSportsFieldsDBContext _dBContext;
         private readonly ILogger<ReviewsRepository> _logger;
@@ -18,6 +19,12 @@ namespace BookingsSportsFields.DataAccess.Repositories
         {
             _dBContext = dBContext;
             _logger = logger;
+        }
+
+        public async Task<bool> HasReviewForBookingAsync(Guid bookingId, Guid userId)
+        {
+            return await _dBContext.Reviews
+                .AnyAsync(r => r.BookingId == bookingId && r.UserId == userId);
         }
 
         public async Task<List<ReviewsEntity>> GetAll()

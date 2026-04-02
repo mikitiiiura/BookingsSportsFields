@@ -50,5 +50,8 @@ namespace BookingsSportsFields.DataAccess.Abstruction
             Guid sportsFieldId,
             DateTime from,
             DateTime to);
+
+        Task<bool> UserHasCompletedBookingAsync(Guid userId, Guid sportsFieldId);
     }
+    
 }

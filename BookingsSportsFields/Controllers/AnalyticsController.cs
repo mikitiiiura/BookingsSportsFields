@@ -61,12 +61,12 @@ namespace BookingsSportsFields.Controllers
         /// <summary>
         /// Середній рейтинг майданчика
         /// </summary>
-        // [HttpGet("rating/{sportsFieldId}")]
-        // public async Task<IActionResult> GetRating(Guid sportsFieldId)
-        // {
-        //     var result = await _analyticsService.GetAverageRatingAsync(sportsFieldId);
-        //     return Ok(new { AverageRating = result });
-        // }
+        [HttpGet("rating/{sportsFieldId}")]
+        public async Task<IActionResult> GetRating(Guid sportsFieldId)
+        {
+            var result = await _analyticsService.GetRatingStatsAsync(sportsFieldId);
+            return Ok(result);
+        }
 
         /// <summary>
         /// Найбільш заповнені години за період

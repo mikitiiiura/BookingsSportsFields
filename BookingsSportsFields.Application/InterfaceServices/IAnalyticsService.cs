@@ -1,3 +1,4 @@
+using BookingsSportsFields.Application.Contracts.Response;
 using BookingsSportsFields.Application.Contracts.Response.Analytics;
 
 namespace BookingsSportsFields.Application.InterfaceServices;
@@ -9,4 +10,5 @@ public interface IAnalyticsService
     Task<List<RevenueDto>> GetRevenueAsync(Guid sportsFieldId, DateTime from, DateTime to);
     // Task<double> GetAverageRatingAsync(Guid sportsFieldId);
     Task<List<PeakHourDto>> GetPeakHoursAsync(Guid sportsFieldId, DateTime from, DateTime to);
+    Task<RatingStatsDto> GetRatingStatsAsync(Guid sportsFieldId);
 }

@@ -37,5 +37,8 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         /// Майданчик, до якого відгу
         /// </summary>
         public SportsFieldsEntity SportsField { get; set; } = null!;
+        
+        public Guid? BookingId { get; set; }                    // до якого бронювання відгук
+        public BookingsEntity? Booking { get; set; }
     }
 }

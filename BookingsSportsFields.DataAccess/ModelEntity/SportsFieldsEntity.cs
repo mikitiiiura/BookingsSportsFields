@@ -61,5 +61,11 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         
         public ICollection<SportsFieldInstanceEntity> Instances { get; set; } 
             = new List<SportsFieldInstanceEntity>();
+        
+        // === НОВЕ ===
+        public double AverageRating { get; set; } = 0;           // середній рейтинг (0-5)
+        public int ReviewCount { get; set; } = 0;                // кількість відгуків
+
+        public List<ReviewsEntity> Reviews { get; set; } = new(); // для зручності
     }
 }

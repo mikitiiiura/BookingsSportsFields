@@ -1,3 +1,4 @@
+using BookingsSportsFields.Application.Contracts.Response;
 using BookingsSportsFields.Application.Contracts.Response.Analytics;
 using BookingsSportsFields.Application.InterfaceServices;
 using BookingsSportsFields.Core.Model;
@@ -97,18 +98,26 @@ public class AnalyticsService : IAnalyticsService
             return grouped;
         }
 
-        // public async Task<double> GetAverageRatingAsync(Guid sportsFieldId)
-        // {
-        //     // Припускаємо, що в BookingEntity є поле Rating (або Reviews)
-        //     // Якщо рейтинг зберігається в окремій таблиці — зміни запит
-        //     var ratings = await _bookingsRepo.GetBookingsForFieldByPeriodAsync(sportsFieldId, DateTime.MinValue, DateTime.MaxValue);
-        //
-        //     var validRatings = ratings
-        //         .Where(b => b.Rating.HasValue && b.Rating.Value > 0)
-        //         .Select(b => b.Rating.Value);
-        //
-        //     return validRatings.Any() ? Math.Round(validRatings.Average(), 1) : 0;
-        // }
+        public async Task<RatingStatsDto> GetRatingStatsAsync(Guid sportsFieldId)
+        {
+            var avg = await _fieldsRepo.GetAverageRatingAsync(sportsFieldId);
+            var count = await _fieldsRepo.GetReviewCountAsync(sportsFieldId);
+            var reviews = await _fieldsRepo.GetReviewsBySportsFieldAsync(sportsFieldId);
+
+            return new RatingStatsDto
+            {
+                AverageRating = avg,
+                ReviewCount = count,
+                Reviews = reviews.Select(r => new ReviewResponse
+                {
+                    Id = r.Id,
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    CreatedAt = r.CreatedAt,
+                    UserName = r.User?.FullName ?? "Анонім"
+                }).ToList()
+            };
+        }
 
         public async Task<List<PeakHourDto>> GetPeakHoursAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {

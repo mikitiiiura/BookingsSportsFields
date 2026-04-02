@@ -131,78 +131,6 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 throw;
             }
         }
-//        public async Task UpdateAsync(SportsFieldsEntity entity)
-// {
-//     _logger.LogInformation("Оновлення майданчика в репозиторії ID: {Id}", entity.Id);
-//
-//     try
-//     {
-//         // Отримуємо свіжий стан з БД (щоб уникнути кешу EF з старими Id)
-//         var existing = await _dBContext.SportsFields
-//             .Include(sf => sf.TypesWithDetails)
-//                 .ThenInclude(t => t.WeeklySchedules)
-//             .FirstOrDefaultAsync(sf => sf.Id == entity.Id);
-//
-//         if (existing == null)
-//         {
-//             _logger.LogWarning("Майданчик не знайдено: {Id}", entity.Id);
-//             throw new KeyNotFoundException($"SportsField {entity.Id} not found");
-//         }
-//
-//         // Оновлюємо базові поля
-//         existing.Name = entity.Name;
-//         existing.Description = entity.Description;
-//         existing.ImageUrl = entity.ImageUrl;
-//         // CreatedAt, OwnerId, Location — НЕ чіпаємо
-//
-//         // Повна заміна типів та розкладів
-//         if (entity.TypesWithDetails != null && entity.TypesWithDetails.Any())
-//         {
-//             // Видаляємо старі типи (каскадно видаляться розклади)
-//             _dBContext.SportsFieldSportTypes.RemoveRange(existing.TypesWithDetails);
-//
-//             // Очищаємо колекцію в пам'яті
-//             existing.TypesWithDetails.Clear();
-//
-//             // Додаємо нові типи з новими Id (EF зробить INSERT)
-//             foreach (var newType in entity.TypesWithDetails)
-//             {
-//                 var typeEntity = new SportsFieldSportTypeEntity
-//                 {
-//                     Id = Guid.NewGuid(),
-//                     Type = newType.Type,
-//                     PricePerHour = newType.PricePerHour,
-//                     WarningInformation = newType.WarningInformation ?? "",
-//                     WeeklySchedules = newType.WeeklySchedules.Select(ws => new SportsFieldSchedule
-//                     {
-//                         Id = Guid.NewGuid(),
-//                         DayOfWeek = ws.DayOfWeek,
-//                         AvailableFrom = ws.AvailableFrom,
-//                         AvailableTo = ws.AvailableTo
-//                     }).ToList()
-//                 };
-//
-//                 existing.TypesWithDetails.Add(typeEntity);
-//             }
-//         }
-//
-//         // Оновлюємо сутність (EF зробить UPDATE базових + INSERT нових типів/розкладів)
-//         _dBContext.SportsFields.Update(existing);
-//         await _dBContext.SaveChangesAsync();
-//
-//         _logger.LogInformation("Оновлення успішно завершено для ID: {Id}", entity.Id);
-//     }
-//     catch (DbUpdateConcurrencyException ex)
-//     {
-//         _logger.LogError(ex, "Concurrency помилка при оновленні майданчика {Id}", entity.Id);
-//         throw new Exception("Конфлікт даних — майданчик міг бути змінений іншим користувачем", ex);
-//     }
-//     catch (Exception ex)
-//     {
-//         _logger.LogError(ex, "Помилка оновлення майданчика {Id}: {Message}", entity.Id, ex.Message);
-//         throw;
-//     }
-// }
        
 // Новий метод — оновлює ТІЛЬКИ ImageUrl, не чіпає типи
 public async Task UpdateImageUrlAsync(Guid id, string newImageUrl)
@@ -249,19 +177,7 @@ public async Task<SportsFieldsEntity?> GetByIdWithDetailsAsync(Guid id)
                 .Include(sf => sf.Owner)
                 .FirstOrDefaultAsync(sf => sf.Id == id);
         }
-       
-// public async Task<SportsFieldsEntity?> GetByIdWithDetailsAsync(Guid id)
-// {
-//     return await _dBContext.SportsFields
-//         .AsNoTracking()                              // ← Додаємо це!
-//         .Include(sf => sf.TypesWithDetails)
-//         .ThenInclude(t => t.WeeklySchedules)
-//         .Include(sf => sf.TypesWithDetails)
-//         .ThenInclude(t => t.Instances)
-//         .Include(sf => sf.Location)
-//         .Include(sf => sf.Owner)
-//         .FirstOrDefaultAsync(sf => sf.Id == id);
-// }
+        
 public async Task ReplaceTypesAndSchedulesAndInstancesAsync(Guid sportsFieldId, List<SportsFieldSportTypeEntity> newTypes)
 {
     // видаляємо старі — без відстеження
@@ -408,15 +324,6 @@ public async Task SaveChangesAsync()
                 await _dBContext.SportsFields.AddAsync(sportsFields);
                 await _dBContext.SaveChangesAsync();
                 return sportsFields;
-                
-                // // 👉 Після збереження повторно отримуємо об'єкт з підключеним Location
-                // var created = await _dBContext.SportsFields
-                //     .Include(sf => sf.Location)
-                //     .Include(sf => sf.TypesWithDetails)
-                //     .ThenInclude(t => t.WeeklySchedules)
-                //     .FirstOrDefaultAsync(sf => sf.Id == sportsFields.Id);
-                //
-                // return created!;
             }
             catch (Exception e)
             {
@@ -453,6 +360,66 @@ public async Task SaveChangesAsync()
             if (changed)
             {
                 _dBContext.SportsFields.Update(entity);
+                await _dBContext.SaveChangesAsync();
+            }
+        }
+        
+        // Додай в клас SportsFieldsRepository
+
+        public async Task AddReviewAsync(ReviewsEntity review)
+        {
+            _logger.LogInformation("Adding review for sports field {FieldId}, rating {Rating}", 
+                review.SportsFieldId, review.Rating);
+
+            await _dBContext.Reviews.AddAsync(review);
+            await _dBContext.SaveChangesAsync();
+
+            await UpdateAverageRatingAsync(review.SportsFieldId);
+        }
+
+        public async Task<List<ReviewsEntity>> GetReviewsBySportsFieldAsync(Guid sportsFieldId)
+        {
+            return await _dBContext.Reviews
+                .Where(r => r.SportsFieldId == sportsFieldId)
+                .Include(r => r.User)
+                .OrderByDescending(r => r.CreatedAt)
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
+        public async Task<double> GetAverageRatingAsync(Guid sportsFieldId)
+        {
+            var ratings = await _dBContext.Reviews
+                .Where(r => r.SportsFieldId == sportsFieldId)
+                .Select(r => (double)r.Rating)
+                .ToListAsync();
+
+            return ratings.Any() ? Math.Round(ratings.Average(), 1) : 0;
+        }
+
+        public async Task<int> GetReviewCountAsync(Guid sportsFieldId)
+        {
+            return await _dBContext.Reviews.CountAsync(r => r.SportsFieldId == sportsFieldId);
+        }
+
+// Допоміжний метод
+        private async Task UpdateAverageRatingAsync(Guid sportsFieldId)
+        {
+            var ratings = await _dBContext.Reviews
+                .Where(r => r.SportsFieldId == sportsFieldId)
+                .Select(r => (double)r.Rating)
+                .ToListAsync();
+
+            var avg = ratings.Any() ? Math.Round(ratings.Average(), 1) : 0;
+            var count = ratings.Count;
+
+            var field = await _dBContext.SportsFields
+                .FirstOrDefaultAsync(f => f.Id == sportsFieldId);
+
+            if (field != null)
+            {
+                field.AverageRating = avg;
+                field.ReviewCount = count;
                 await _dBContext.SaveChangesAsync();
             }
         }

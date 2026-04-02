@@ -38,18 +38,23 @@ namespace BookingsSportsFields.Application.Contracts.Response
     (
         Guid Id,
         string Title,
+        double AverageRating,
+        int ReviewCount,
         List<SportTypeDetailDto> Types,
         string Description,
         //DateTime CreatedAt,
         string ImageUrl,
         LocationDto Location,
         OwnerDto? Owner
+        
     )
     {
         public SportsFieldResponce(SportsFieldsEntity sportsFields) : this
             (
                 sportsFields.Id,
                 sportsFields.Name,
+                sportsFields.AverageRating,
+                sportsFields.ReviewCount,
                 
                 sportsFields.TypesWithDetails.Select(t => new SportTypeDetailDto(
                     t.Type,
@@ -176,6 +181,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
         (
             bookings.SportsField.Id,
             bookings.SportsField.Name,
+            bookings.SportsField.AverageRating,
+            bookings.SportsField.ReviewCount,
             bookings.SportsField.TypesWithDetails.Select(t => new SportTypeDetailDto(
                 t.Type,
                 t.PricePerHour,

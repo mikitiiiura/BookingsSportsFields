@@ -27,5 +27,10 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task ReplaceTypesAndSchedulesAndInstancesAsync(Guid sportsFieldId, List<SportsFieldSportTypeEntity> newTypes);
         Task UpdateBasicFieldsAsync(Guid id, string? name, string? description, string? imageUrl);
         Task<SportsFieldsEntity?> GetByIdWithTrackingAsync(Guid id);
+        
+        Task AddReviewAsync(ReviewsEntity review);
+        Task<List<ReviewsEntity>> GetReviewsBySportsFieldAsync(Guid sportsFieldId);
+        Task<double> GetAverageRatingAsync(Guid sportsFieldId);
+        Task<int> GetReviewCountAsync(Guid sportsFieldId);
     }
 }

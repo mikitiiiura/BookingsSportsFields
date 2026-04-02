@@ -14,21 +14,17 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication().AddCookie(IdentityConstants.ApplicationScheme);
 
+// === ТІЛЬКИ COOKIE AUTHENTICATION (без JWT) ===
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
+    .AddCookie(IdentityConstants.ApplicationScheme);
 
 var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext");
-// builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
-//     options.UseSqlServer(connectionString));
 
 builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
     options.UseSqlServer(connectionString)
@@ -36,37 +32,41 @@ builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
         .EnableDetailedErrors());
 
 builder.Services.AddIdentityCore<UserEntity>()
-    .AddRoles<IdentityRole<Guid>>() // Додаємо ролі з Guid
+    .AddRoles<IdentityRole<Guid>>()
     .AddEntityFrameworkStores<BookingsSportsFieldsDBContext>()
     .AddApiEndpoints();
 
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 
-
-
 builder.Services.AddScoped<ISportsFieldsRepository, SportsFieldsRepository>();
 builder.Services.AddScoped<IBookingsRepository, BookingsRepository>();
+builder.Services.AddScoped<IReviewsRepository, ReviewsRepository>(); // ← додай, якщо ще немає
 
 builder.Services.AddTransient<IMailService, MailService>();
 builder.Services.AddScoped<ISportFildService, SportFildService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();   // ← додай
 
 builder.Services.AddHostedService<BookingStatusUpdater>();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
-        policy => policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5000", "http://192.168.0.103:5000") // Дозволяє твоєму React-додатку робити запити Важливо без /
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()//);
-                        .AllowCredentials()); // Якщо використовуєш аутентифікацію через cookies
-}); 
+        policy => policy.WithOrigins(
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5000",
+            "http://192.168.0.103:5000")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
 
 var app = builder.Build();
-app.UseStaticFiles(); // save image from backend
 
-// Якщо хочеш, щоб папка images була доступна з /images (а не з /wwwroot/images)
+app.UseStaticFiles();
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(
@@ -74,7 +74,6 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/images"
 });
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -82,21 +81,18 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
-
 app.UseHttpsRedirection();
 
 app.MapIdentityApi<UserEntity>();
 
-app.MapGet("user/me", async(ClaimsPrincipal claims, BookingsSportsFieldsDBContext context) =>
+app.MapGet("user/me", async (ClaimsPrincipal claims, BookingsSportsFieldsDBContext context) =>
 {
     Guid userId = Guid.Parse(claims.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value);
-
     return await context.Users.FindAsync(userId);
 })
-    .RequireAuthorization();
+.RequireAuthorization();
 
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
