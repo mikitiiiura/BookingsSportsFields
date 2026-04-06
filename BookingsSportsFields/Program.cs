@@ -8,9 +8,35 @@ using BookingsSportsFields.DataAccess.ModelEntity;
 using BookingsSportsFields.DataAccess.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using System.Security.Claims;
 using BookingsSportsFields.Application.Services.Hosted_Service;
 using Microsoft.Extensions.FileProviders;
+
+static string ResolvePostgresConnectionString(IConfiguration config)
+{
+    var url = config["DATABASE_URL"];
+    if (!string.IsNullOrWhiteSpace(url))
+    {
+        try
+        {
+            var csb = new NpgsqlConnectionStringBuilder(url)
+            {
+                SslMode = SslMode.Require
+            };
+            return csb.ConnectionString;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "Failed to parse DATABASE_URL. Check the value in Render Environment.", ex);
+        }
+    }
+
+    return config.GetConnectionString("WebAppDbContext")
+        ?? throw new InvalidOperationException(
+            "No database connection: set DATABASE_URL or ConnectionStrings__WebAppDbContext.");
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,9 +51,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddCookie(IdentityConstants.ApplicationScheme);
 
-// Render (і багато хостингів) задають лише DATABASE_URL; appsettings не повинен їх перебивати.
-var connectionString = builder.Configuration["DATABASE_URL"]
-    ?? builder.Configuration.GetConnectionString("WebAppDbContext");
+var connectionString = ResolvePostgresConnectionString(builder.Configuration);
 
 builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
 {
