@@ -25,8 +25,9 @@ builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddCookie(IdentityConstants.ApplicationScheme);
 
-var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext")
-    ?? builder.Configuration["DATABASE_URL"];
+// Render (і багато хостингів) задають лише DATABASE_URL; appsettings не повинен їх перебивати.
+var connectionString = builder.Configuration["DATABASE_URL"]
+    ?? builder.Configuration.GetConnectionString("WebAppDbContext");
 
 builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
 {
