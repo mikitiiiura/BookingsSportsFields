@@ -16,7 +16,7 @@ public class BookingsConfiguration : IEntityTypeConfiguration<BookingsEntity>
             .HasColumnType("decimal(18,2)");
 
         builder.Property(b => b.CreatedAt)
-            .HasDefaultValueSql("GETUTCDATE()");
+            .HasDefaultValueSql("now()");
 
         builder.HasOne(b => b.User)
             .WithMany()

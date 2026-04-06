@@ -32,7 +32,7 @@ namespace BookingsSportsFields.DataAccess.Configurations
                 .HasMaxLength(1000);
 
             builder.Property(sf => sf.CreatedAt)
-                .HasDefaultValueSql("GETUTCDATE()");
+                .HasDefaultValueSql("now()");
 
             builder.Property(sf => sf.ImageUrl)
                 .IsRequired();

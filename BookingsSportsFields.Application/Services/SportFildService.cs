@@ -1,4 +1,5 @@
 ﻿using BookingsSportsFields.Application.InterfaceServices;
+using BookingsSportsFields.Core;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using Microsoft.Extensions.Logging;
@@ -7,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using BookingsSportsFields.Application.Contracts.Request;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System.IO;
@@ -18,13 +20,21 @@ namespace BookingsSportsFields.Application.Services
         private readonly IConfiguration _configuration;
         private readonly ISportsFieldsRepository _sportsFieldsRepository;
         private readonly ILogger<SportFildService> _logger;
+        private readonly IWebHostEnvironment _environment;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public SportFildService(ISportsFieldsRepository sportsFieldsRepository, ILogger<SportFildService> logger,
-            IConfiguration configuration)
+        public SportFildService(
+            ISportsFieldsRepository sportsFieldsRepository,
+            ILogger<SportFildService> logger,
+            IConfiguration configuration,
+            IWebHostEnvironment environment,
+            IHttpContextAccessor httpContextAccessor)
         {
             _configuration = configuration;
             _sportsFieldsRepository = sportsFieldsRepository;
             _logger = logger;
+            _environment = environment;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<List<SportsFieldsEntity>> GetAll()
@@ -40,7 +50,8 @@ namespace BookingsSportsFields.Application.Services
         public async Task<List<SportsFieldsEntity>> GetFilteredFild(int? type, string? searchTitleOrAddres,
             DateTime? date, string? startTime, string? duration, string? city)
         {
-            return await _sportsFieldsRepository.GetFilteredFild(type, searchTitleOrAddres, date, startTime, duration, city);
+            var day = date.HasValue ? UtcDateTimeHelper.UtcStartOfCalendarDay(date.Value) : (DateTime?)null;
+            return await _sportsFieldsRepository.GetFilteredFild(type, searchTitleOrAddres, day, startTime, duration, city);
         }
 
         public async Task<SportsFieldsEntity> AddSportsFields(SportsFieldsEntity sportsFields)
@@ -171,16 +182,17 @@ namespace BookingsSportsFields.Application.Services
 
             // Тут Guid.NewGuid() залишається, оскільки він генерує унікальне ім'я для ФАЙЛУ
             var fileName = $"{Guid.NewGuid()}{Path.GetExtension(imageFile.FileName)}";
-            var filePath = Path.Combine("wwwroot", "images", "sportsfields", fileName);
+            var webRoot = _environment.WebRootPath ?? Path.Combine(_environment.ContentRootPath, "wwwroot");
+            var sportsDir = Path.Combine(webRoot, "images", "sportsfields");
+            Directory.CreateDirectory(sportsDir);
+            var filePath = Path.Combine(sportsDir, fileName);
 
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            await using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await imageFile.CopyToAsync(stream);
             }
 
-            var baseUrl = _configuration["AppSettings:BaseUrl"] ?? "https://localhost:44313";
+            var baseUrl = GetPublicBaseUrl().TrimEnd('/');
             var newUrl = $"{baseUrl}/images/sportsfields/{fileName}";
 
             _logger.LogInformation("Збережено зображення: {NewUrl}", newUrl);
@@ -196,6 +208,15 @@ namespace BookingsSportsFields.Application.Services
         }
 
         // ====================== Допоміжні методи ======================
+
+        /// <summary>Публічний базовий URL API: з поточного запиту (правильний порт/схема) або з AppSettings.</summary>
+        private string GetPublicBaseUrl()
+        {
+            var request = _httpContextAccessor.HttpContext?.Request;
+            if (request != null)
+                return $"{request.Scheme}://{request.Host}";
+            return _configuration["AppSettings:BaseUrl"] ?? "http://localhost:5035";
+        }
 
         private List<SportsFieldInstanceEntity> CreateInstancesForType(SportsFieldSportTypeEntity typeEntity, UpdateSportTypeDetailDto dto)
         {

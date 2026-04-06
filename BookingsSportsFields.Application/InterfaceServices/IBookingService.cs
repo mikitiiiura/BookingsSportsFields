@@ -30,6 +30,7 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date,
             string? titleOfSportFild);
 
+        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid sportFieldId, DateTime date);
 
     }
 }

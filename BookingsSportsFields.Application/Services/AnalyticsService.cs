@@ -1,6 +1,7 @@
 using BookingsSportsFields.Application.Contracts.Response;
 using BookingsSportsFields.Application.Contracts.Response.Analytics;
 using BookingsSportsFields.Application.InterfaceServices;
+using BookingsSportsFields.Core;
 using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
@@ -24,18 +25,19 @@ public class AnalyticsService : IAnalyticsService
 
     public async Task<List<OccupancyDto>> GetOccupancyAsync(Guid sportsFieldId, DateTime date)
         {
-            // Отримуємо розклад на цей день тижня
+            var utcDay = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
+
+            // Отримуємо розклад на цей день тижня (день тижня за UTC-календарем)
             var field = await _fieldsRepo.GetByIdWithDetailsAsync(sportsFieldId);
             if (field == null)
                 throw new KeyNotFoundException($"Майданчик {sportsFieldId} не знайдено");
 
             var daySchedules = field.TypesWithDetails
                 ?.SelectMany(t => t.WeeklySchedules)
-                ?.Where(s => s.DayOfWeek == date.DayOfWeek)
+                ?.Where(s => s.DayOfWeek == utcDay.DayOfWeek)
                 ?.ToList() ?? new List<SportsFieldSchedule>();
 
-            // Отримуємо реальні бронювання на цю дату
-            var bookings = await _bookingsRepo.GetBookingsForFieldByDateAsync(sportsFieldId, date);
+            var bookings = await _bookingsRepo.GetBookingsForFieldByDateAsync(sportsFieldId, utcDay);
 
             var result = new List<OccupancyDto>();
 
@@ -67,7 +69,10 @@ public class AnalyticsService : IAnalyticsService
 
         public async Task<CancellationStatsDto> GetCancellationStatsAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {
-            var bookings = await _bookingsRepo.GetBookingsForFieldByPeriodAsync(sportsFieldId, from, to);
+            var bookings = await _bookingsRepo.GetBookingsForFieldByPeriodAsync(
+                sportsFieldId,
+                UtcDateTimeHelper.ToUtc(from),
+                UtcDateTimeHelper.ToUtc(to));
 
             var total = bookings.Count;
             var cancelled = bookings.Count(b => b.Status == BookingStatus.Cancelled);
@@ -82,11 +87,14 @@ public class AnalyticsService : IAnalyticsService
 
         public async Task<List<RevenueDto>> GetRevenueAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {
-            var bookings = await _bookingsRepo.GetBookingsForFieldByPeriodAsync(sportsFieldId, from, to);
+            var bookings = await _bookingsRepo.GetBookingsForFieldByPeriodAsync(
+                sportsFieldId,
+                UtcDateTimeHelper.ToUtc(from),
+                UtcDateTimeHelper.ToUtc(to));
 
             var grouped = bookings
                 .Where(b => b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Completed ) // тільки успішні
-                .GroupBy(b => b.StartTime.Date)
+                .GroupBy(b => UtcDateTimeHelper.UtcStartOfCalendarDay(UtcDateTimeHelper.ToUtc(b.StartTime)))
                 .Select(g => new RevenueDto
                 {
                     Date = g.Key.ToString("yyyy-MM-dd"),
@@ -121,7 +129,10 @@ public class AnalyticsService : IAnalyticsService
 
         public async Task<List<PeakHourDto>> GetPeakHoursAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {
-            var counts = await _bookingsRepo.GetHourlyBookingCountsAsync(sportsFieldId, from, to);
+            var counts = await _bookingsRepo.GetHourlyBookingCountsAsync(
+                sportsFieldId,
+                UtcDateTimeHelper.ToUtc(from),
+                UtcDateTimeHelper.ToUtc(to));
 
             var total = counts.Values.Sum();
 

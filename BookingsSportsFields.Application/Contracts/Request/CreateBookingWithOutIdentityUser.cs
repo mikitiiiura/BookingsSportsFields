@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace BookingsSportsFields.Application.Contracts.Request
@@ -23,14 +24,15 @@ namespace BookingsSportsFields.Application.Contracts.Request
     );
     public record CreateGuestBookingRequest
     (
-    [Required] Guid SportFieldId,
-    [StringLength(255)] string? Comment,
-    [Required] SportFieldsType SportType,
-    [Required] DateTime StartTime,
-    [Required] int DurationMinutes,
-    [Required] decimal TotalPrice,
-    [Required] string FullName, // Контактна інформація
-    [Required] string PhoneNumber
+        [Required] Guid SportFieldId,
+        Guid? SportsFieldInstanceId,        // ← додаємо
+        [StringLength(500)] string? Comment,
+        [Required] SportFieldsType SportType,
+        [Required] DateTime StartTime,
+        [Required] int DurationMinutes,
+        [Required] decimal TotalPrice,
+        [Required] string FullName,
+        [Required] string PhoneNumber
     );
 }
 

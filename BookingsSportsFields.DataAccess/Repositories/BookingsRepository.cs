@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using BookingsSportsFields.Core;
 using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
@@ -28,6 +29,9 @@ namespace BookingsSportsFields.DataAccess.Repositories
     Guid? excludeBookingId = null)
 {
     const int bufferMinutes = 15;
+
+    startTime = UtcDateTimeHelper.ToUtc(startTime);
+    endTime = UtcDateTimeHelper.ToUtc(endTime);
 
     var query = _dBContext.Bookings
         .Where(b => b.SportsFieldId == sportsFieldId &&
@@ -105,15 +109,14 @@ namespace BookingsSportsFields.DataAccess.Repositories
         {
             _logger.LogInformation("Fetching all bookings for manager to sport field by date");
     
-            // Отримуємо початок і кінець дня
-            var startOfDay = date.Date; // 00:00:00
-            var endOfDay = date.Date.AddDays(1).AddTicks(-1); // 23:59:59.999
-    
+            var startOfDay = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
+            var endExclusive = startOfDay.AddDays(1);
+
             return await _dBContext.Bookings
-                .Where(b => b.UserId == userId && 
+                .Where(b => b.UserId == userId &&
                             b.SportsFieldId == sportField &&
-                            b.StartTime <= endOfDay && 
-                            b.EndTime >= startOfDay)
+                            b.StartTime < endExclusive &&
+                            b.EndTime > startOfDay)
                 .Include(b => b.SportsFieldInstance)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
@@ -121,6 +124,32 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .Include(b => b.SportsField)
                 .ThenInclude(sf => sf.Owner)
                 .AsNoTracking()
+                .ToListAsync();
+        }
+        
+        /// <summary>
+        /// Для CRM власника/менеджера майданчика — всі бронювання на цьому майданчику
+        /// </summary>
+        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(
+            Guid sportFieldId, 
+            DateTime date)
+        {
+            var startOfDay = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
+            var endExclusive = startOfDay.AddDays(1);
+
+            _logger.LogInformation("Fetching ALL bookings for sport field (for owner). Field={FieldId}, UtcDayStart={Day}",
+                sportFieldId, startOfDay);
+
+            return await _dBContext.Bookings
+                .Where(b => b.SportsFieldId == sportFieldId &&
+                            b.StartTime < endExclusive &&
+                            b.EndTime > startOfDay)
+                .Include(b => b.SportsFieldInstance)
+                .Include(b => b.User)
+                .Include(b => b.SportsField)
+                .ThenInclude(sf => sf.Owner)
+                .AsNoTracking()
+                .OrderByDescending(b => b.StartTime)
                 .ToListAsync();
         }
 
@@ -240,12 +269,17 @@ namespace BookingsSportsFields.DataAccess.Repositories
     SportFieldsType sportType,
     Guid? instanceId = null)
 {
-    _logger.LogInformation("Запит слотів: Field={FieldId}, Date={Date}, Type={Type}, Instance={InstanceId}",
-        sportsFieldId, date.Date, sportType, instanceId);
+    var dayStart = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
+    var dayEnd = dayStart.AddDays(1);
 
+    _logger.LogInformation(
+        "Запит слотів: Field={FieldId}, UtcDayStart={DayStart}, UtcDayEnd={DayEnd}, Type={Type}, Instance={InstanceId}",
+        sportsFieldId, dayStart, dayEnd, sportType, instanceId);
+
+    // Діапазон [dayStart, dayEnd) у UTC — коректно для PostgreSQL timestamptz (без DATE() у зоні сесії БД).
     var query = _dBContext.Bookings
         .Where(b => b.SportsFieldId == sportsFieldId &&
-                    b.StartTime.Date == date.Date &&
+                    b.StartTime >= dayStart && b.StartTime < dayEnd &&
                     b.Status != BookingStatus.Cancelled &&
                     b.SportType == sportType);
 
@@ -273,9 +307,10 @@ namespace BookingsSportsFields.DataAccess.Repositories
     TimeSpan closingTime = new TimeSpan(22, 0, 0);
 
     var availableSlots = new List<TimeSlot>();
-    var current = date.Date + openingTime;
+    var current = dayStart + openingTime;
+    var dayClosing = dayStart + closingTime;
 
-    while (current.AddMinutes(slotDurationMinutes) <= date.Date + closingTime)
+    while (current.AddMinutes(slotDurationMinutes) <= dayClosing)
     {
         var slotEnd = current.AddMinutes(slotDurationMinutes);
 
@@ -302,7 +337,6 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
     return availableSlots;
 }
-        
 
         public class TimeSlot
         {
@@ -413,7 +447,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
                 if (date.HasValue)
                 {
-                    var dayStart = date.Value.Date;
+                    var dayStart = UtcDateTimeHelper.UtcStartOfCalendarDay(date.Value);
                     var dayEnd = dayStart.AddDays(1);
 
                     query = query.Where(b => b.StartTime >= dayStart && b.StartTime < dayEnd);
@@ -435,7 +469,7 @@ namespace BookingsSportsFields.DataAccess.Repositories
         
         public async Task<List<BookingsEntity>> GetBookingsForFieldByDateAsync(Guid sportsFieldId, DateTime date)
         {
-            var start = date.Date;
+            var start = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
             var end = start.AddDays(1);
 
             return await _dBContext.Bookings
@@ -447,28 +481,32 @@ namespace BookingsSportsFields.DataAccess.Repositories
 
         public async Task<List<BookingsEntity>> GetBookingsForFieldByPeriodAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {
+            var f = UtcDateTimeHelper.ToUtc(from);
+            var t = UtcDateTimeHelper.ToUtc(to);
+
             return await _dBContext.Bookings
                 .Where(b => b.SportsFieldId == sportsFieldId &&
-                            b.StartTime >= from &&
-                            b.StartTime < to)
+                            b.StartTime >= f &&
+                            b.StartTime < t)
                 .ToListAsync();
         }
 
         public async Task<Dictionary<int, int>> GetHourlyBookingCountsAsync(Guid sportsFieldId, DateTime from, DateTime to)
         {
-            var bookings = await _dBContext.Bookings
-                .Where(b => b.SportsFieldId == sportsFieldId &&
-                            b.StartTime >= from &&
-                            b.StartTime < to)
-                .GroupBy(b => b.StartTime.Hour)
-                .Select(g => new
-                {
-                    Hour = g.Key,
-                    Count = g.Count()
-                })
-                .ToDictionaryAsync(x => x.Hour, x => x.Count);
+            var f = UtcDateTimeHelper.ToUtc(from);
+            var t = UtcDateTimeHelper.ToUtc(to);
 
-            return bookings;
+            var rows = await _dBContext.Bookings
+                .AsNoTracking()
+                .Where(b => b.SportsFieldId == sportsFieldId &&
+                            b.StartTime >= f &&
+                            b.StartTime < t)
+                .Select(b => b.StartTime)
+                .ToListAsync();
+
+            return rows
+                .GroupBy(st => UtcDateTimeHelper.ToUtc(st).Hour)
+                .ToDictionary(g => g.Key, g => g.Count());
         }
         
         public async Task<bool> UserHasCompletedBookingAsync(Guid userId, Guid sportsFieldId)

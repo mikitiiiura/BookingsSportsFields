@@ -1,5 +1,6 @@
 ﻿using BookingsSportsFields.Application.Contracts.Request;
 using BookingsSportsFields.Application.InterfaceServices;
+using BookingsSportsFields.Core;
 using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
@@ -36,7 +37,15 @@ namespace BookingsSportsFields.Application.Services
         public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDate(Guid userId, Guid sportField, DateTime date)
         {
             _logger.LogInformation("Fetching all bookings for sport field by date");
-            return await _bookingsRepository.GetAllBookingsForSportFieldByDate(userId, sportField, date);
+            return await _bookingsRepository.GetAllBookingsForSportFieldByDate(
+                userId, sportField, UtcDateTimeHelper.UtcStartOfCalendarDay(date));
+        }
+        
+        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid sportFieldId, DateTime date)
+        {
+            _logger.LogInformation("Service: Fetching all bookings for sport field by date for owner");
+            return await _bookingsRepository.GetAllBookingsForSportFieldByDateForOwner(
+                sportFieldId, UtcDateTimeHelper.UtcStartOfCalendarDay(date));
         }
 
         public async Task<List<BookingsEntity>> GetBookingByUser(Guid userId)
@@ -64,7 +73,7 @@ namespace BookingsSportsFields.Application.Services
         /// <returns></returns>
         public async Task<Guid> CreateBookingAsync(CreateBookingRequest request)
         {
-            var startTime = DateTime.SpecifyKind(request.StartTime, DateTimeKind.Utc);
+            var startTime = UtcDateTimeHelper.ToUtc(request.StartTime);
             var endTime = startTime.AddMinutes(request.DurationMinutes);
 
             var booking = new BookingsEntity
@@ -107,44 +116,64 @@ namespace BookingsSportsFields.Application.Services
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        public async Task<Guid> CreateGuestBookingAsync(CreateGuestBookingRequest request)
-        {
-            // Створення тимчасового користувача (якщо потрібно)
-            var tempUser = new UserEntity
-            {
-                Id = Guid.NewGuid(),
-                FullName = request.FullName,
-                UserName = request.PhoneNumber, // Або генерувати тимчасовий email
-                PhoneNumber = request.PhoneNumber,
-                Role = UserRole.Guest,
-                CreatedAt = DateTime.UtcNow
-            };
+       public async Task<Guid> CreateGuestBookingAsync(CreateGuestBookingRequest request)
+{
+    _logger.LogInformation("Створення гостевого бронювання для {FullName}, телефон {Phone}, Instance={InstanceId}", 
+        request.FullName, request.PhoneNumber, request.SportsFieldInstanceId);
 
-            await _userManager.CreateAsync(tempUser);
+    // Створюємо тимчасового користувача
+    var tempUser = new UserEntity
+    {
+        Id = Guid.NewGuid(),
+        UserName = "guest_" + Guid.NewGuid().ToString("N").Substring(0, 12), // правильний формат
+        Email = $"guest_{Guid.NewGuid().ToString("N").Substring(0, 8)}@temp.com",
+        FullName = request.FullName,
+        PhoneNumber = request.PhoneNumber,
+        Role = UserRole.Guest,
+        CreatedAt = DateTime.UtcNow,
+        EmailConfirmed = true,
+        PhoneNumberConfirmed = true
+    };
 
-            // Створення бронювання
-            var endTime = request.StartTime.AddMinutes(request.DurationMinutes);
+    var createResult = await _userManager.CreateAsync(tempUser);
 
-            var booking = new BookingsEntity
-            {
-                Id = Guid.NewGuid(),
-                SportsFieldId = request.SportFieldId,
-                Comment = request.Comment,
-                SportType = request.SportType,
-                StartTime = request.StartTime,
-                EndTime = endTime,
-                Status = BookingStatus.Pending,
-                TotalPrice = request.TotalPrice,
-                UserId = tempUser.Id,
-                CreatedAt = DateTime.UtcNow
-            };
+    if (!createResult.Succeeded)
+    {
+        var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+        _logger.LogError("Не вдалося створити тимчасового користувача: {Errors}", errors);
+        throw new Exception($"Не вдалося створити гостя: {errors}");
+    }
 
-            await _bookingsRepository.AddAsync(booking);
-            return booking.Id;
-        }
+    // Створюємо бронювання
+    var startUtc = UtcDateTimeHelper.ToUtc(request.StartTime);
+    var endTime = startUtc.AddMinutes(request.DurationMinutes);
+
+    var booking = new BookingsEntity
+    {
+        Id = Guid.NewGuid(),
+        SportsFieldId = request.SportFieldId,
+        SportsFieldInstanceId = request.SportsFieldInstanceId,
+        Comment = request.Comment,
+        SportType = request.SportType,
+        StartTime = startUtc,
+        EndTime = endTime,
+        Status = BookingStatus.Pending,
+        TotalPrice = request.TotalPrice,
+        UserId = tempUser.Id,
+        CreatedAt = DateTime.UtcNow
+    };
+
+    await _bookingsRepository.AddAsync(booking);
+
+    _logger.LogInformation("Гостеве бронювання успішно створено. BookingId={BookingId}, UserId={UserId}, InstanceId={InstanceId}", 
+        booking.Id, tempUser.Id, booking.SportsFieldInstanceId);
+
+    return booking.Id;
+}
         public async Task<List<TimeSlot>> GetAvailableTimeSlots(Guid sportsFieldId, DateTime date, int sportType, Guid? instanceId = null)
         {
-            return await _bookingsRepository.GetAvailableTimeSlots(sportsFieldId, date, (SportFieldsType)sportType, instanceId);
+            return await _bookingsRepository.GetAvailableTimeSlots(
+                sportsFieldId, UtcDateTimeHelper.UtcStartOfCalendarDay(date), (SportFieldsType)sportType, instanceId);
         }
 
         public async Task<bool> CheckAvailability(
@@ -154,10 +183,11 @@ namespace BookingsSportsFields.Application.Services
             int sportType,
             Guid? instanceId = null)  // ← вже є, але перевір
         {
-            DateTime endTime = startTime.AddMinutes(durationMinutes);
+            var startUtc = UtcDateTimeHelper.ToUtc(startTime);
+            DateTime endTime = startUtc.AddMinutes(durationMinutes);
             return await _bookingsRepository.IsFieldAvailable(
                 sportsFieldId,
-                startTime,
+                startUtc,
                 endTime,
                 (SportFieldsType)sportType,
                 instanceId  // ← передаємо instanceId
@@ -179,7 +209,8 @@ namespace BookingsSportsFields.Application.Services
             string? titleOfSportFild)
         {
             _logger.LogInformation("Getting all bookings for owner ID: {OwnerId}", ownerId);
-            return await _bookingsRepository.GetReservedReservationsForFieldOwnerCRM(ownerId, status, date, titleOfSportFild);
+            var day = date.HasValue ? UtcDateTimeHelper.UtcStartOfCalendarDay(date.Value) : (DateTime?)null;
+            return await _bookingsRepository.GetReservedReservationsForFieldOwnerCRM(ownerId, status, day, titleOfSportFild);
         }
         
 

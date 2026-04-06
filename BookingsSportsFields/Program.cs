@@ -14,6 +14,7 @@ using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -24,12 +25,17 @@ builder.Services.AddAuthorization();
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
     .AddCookie(IdentityConstants.ApplicationScheme);
 
-var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext");
+var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext")
+    ?? builder.Configuration["DATABASE_URL"];
 
 builder.Services.AddDbContext<BookingsSportsFieldsDBContext>(options =>
-    options.UseSqlServer(connectionString)
-        .EnableSensitiveDataLogging()
-        .EnableDetailedErrors());
+{
+    // Історія міграцій у public: схема "identity" з’являється лише після Up(), інакше GetAppliedMigrations() падає на першому запуску.
+    options.UseNpgsql(connectionString, npgsql =>
+        npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "public"));
+    if (builder.Environment.IsDevelopment())
+        options.EnableSensitiveDataLogging().EnableDetailedErrors();
+});
 
 builder.Services.AddIdentityCore<UserEntity>()
     .AddRoles<IdentityRole<Guid>>()
@@ -57,6 +63,9 @@ builder.Services.AddCors(options =>
             "http://localhost:5173",
             "http://localhost:5174",
             "http://localhost:5000",
+            "http://172.25.160.1:5173",
+            "http://172.20.10.3:5173",
+            "http://192.168.0.51:5173",
             "http://192.168.0.103:5000")
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -64,6 +73,12 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<BookingsSportsFieldsDBContext>();
+    db.Database.Migrate();
+}
 
 app.UseStaticFiles();
 

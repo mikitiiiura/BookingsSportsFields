@@ -52,6 +52,10 @@ namespace BookingsSportsFields.DataAccess.Abstruction
             DateTime to);
 
         Task<bool> UserHasCompletedBookingAsync(Guid userId, Guid sportsFieldId);
+
+        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(
+            Guid sportFieldId,
+            DateTime date);
     }
     
 }

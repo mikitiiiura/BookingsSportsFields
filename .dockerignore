@@ -1,0 +1,13 @@
+**/.git
+**/.idea
+**/bin
+**/obj
+**/out
+**/*.user
+**/*.rsuser
+**/BookingsSportsFields.Test
+**/node_modules
+**/.vs
+**/*.md
+Dockerfile*
+.dockerignore

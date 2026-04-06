@@ -43,6 +43,17 @@ namespace BookingsSportsFields.Controllers
 
             return Ok(response);
         }
+        
+        [HttpGet("GetAllBookingsForSportFieldByDateForOwner")]
+        public async Task<ActionResult<List<BookingResponse>>> GetAllBookingsForSportFieldByDateForOwner(
+            Guid sportFieldId, 
+            DateTime date)
+        {
+            var bookings = await _bookingService.GetAllBookingsForSportFieldByDateForOwner(sportFieldId, date);
+
+            var response = bookings.Select(x => new BookingResponse(x)).ToList();
+            return Ok(response);
+        }
 
         [HttpGet("GetBookingByIdUser")]
         public async Task<ActionResult<List<BookingResponse>>> GetByUserId(Guid userId)
@@ -128,16 +139,25 @@ namespace BookingsSportsFields.Controllers
         public async Task<IActionResult> CreateGuestBooking([FromBody] CreateGuestBookingRequest request)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                _logger.LogWarning("ModelState invalid for guest booking: {Errors}", string.Join(", ", errors));
+                return BadRequest(new { message = "Некоректні дані", errors });
+            }
 
             try
             {
                 var bookingId = await _bookingService.CreateGuestBookingAsync(request);
-                return Ok(new { BookingId = bookingId });
+                return Ok(new { BookingId = bookingId, Message = "Бронювання гостя створено" });
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                _logger.LogError(ex, "Помилка при створенні бронювання гостя");
+                return BadRequest(new { message = ex.Message });
             }
         }
 
@@ -160,15 +180,19 @@ namespace BookingsSportsFields.Controllers
         // }
         [HttpGet("available-slots/{sportsFieldId}/{date}/{sportType}/{instanceId?}")]
         public async Task<ActionResult<List<TimeSlot>>> GetAvailableTimeSlots(
-            Guid sportsFieldId, 
-            DateTime date, 
+            Guid sportsFieldId,
+            string date,
             int sportType,
             Guid? instanceId = null)
         {
             try
             {
-                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, date, sportType, instanceId);
-                _logger.LogInformation("Повернуто {Count} слотів", slots.Count);
+                if (!BookingsSportsFields.Core.UtcDateTimeHelper.TryParseIsoOrDateOnly(date, out var utcDay))
+                    return BadRequest(
+                        "Невірний формат дати. Очікується UTC-календарний день: 2026-04-07 або 2026-04-07T00:00:00.000Z");
+
+                var slots = await _bookingService.GetAvailableTimeSlots(sportsFieldId, utcDay, sportType, instanceId);
+                _logger.LogInformation("Повернуто {Count} слотів (UTC day {Day})", slots.Count, utcDay.ToString("yyyy-MM-dd"));
                 return Ok(slots);
             }
             catch (Exception ex)
@@ -177,6 +201,7 @@ namespace BookingsSportsFields.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
         
         [HttpDelete("cleanup-old-bookings")]
         public async Task<IActionResult> CleanupOldBookings()

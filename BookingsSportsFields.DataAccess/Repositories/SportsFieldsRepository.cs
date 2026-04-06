@@ -1,4 +1,5 @@
-﻿using BookingsSportsFields.Core.Model;
+﻿using BookingsSportsFields.Core;
+using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using Microsoft.EntityFrameworkCore;
@@ -293,7 +294,8 @@ public async Task SaveChangesAsync()
                 {
                     if (TimeSpan.TryParse(startTime, out var start) && double.TryParse(duration, out var durationHours))
                     {
-                        var startDateTime = date.Value.Date + start;
+                        var dayStart = UtcDateTimeHelper.UtcStartOfCalendarDay(date.Value);
+                        var startDateTime = DateTime.SpecifyKind(dayStart + start, DateTimeKind.Utc);
                         var endDateTime = startDateTime.AddHours(durationHours);
 
                         query = query.Where(s =>
