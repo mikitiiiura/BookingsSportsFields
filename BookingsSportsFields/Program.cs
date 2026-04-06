@@ -14,33 +14,43 @@ using Microsoft.Extensions.FileProviders;
 
 static string ResolvePostgresConnectionString(IConfiguration config)
 {
-    var databaseUrl = config["DATABASE_URL"];
+    var url = config["DATABASE_URL"];
 
-    if (!string.IsNullOrEmpty(databaseUrl))
+    if (!string.IsNullOrWhiteSpace(url))
     {
         try
         {
-            var uri = new Uri(databaseUrl);
+            var uri = new Uri(url);
 
-            var userInfo = uri.UserInfo.Split(':');
+            var userInfo = uri.UserInfo.Split(':', 2);
             var username = userInfo[0];
-            var password = userInfo[1];
+            var password = userInfo.Length > 1 ? userInfo[1] : "";
 
             var host = uri.Host;
             var port = uri.Port;
-            var database = uri.AbsolutePath.Trim('/');
+            var database = uri.AbsolutePath.TrimStart('/');
 
-            return $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+            return new NpgsqlConnectionStringBuilder
+            {
+                Host = host,
+                Port = port,
+                Username = username,
+                Password = password,
+                Database = database,
+                SslMode = SslMode.Require,
+                TrustServerCertificate = true
+            }.ConnectionString;
         }
         catch (Exception ex)
         {
             throw new InvalidOperationException(
-                "Failed to parse DATABASE_URL from Render.", ex);
+                "Failed to parse DATABASE_URL. Check the value in Render Environment.", ex);
         }
     }
 
     return config.GetConnectionString("WebAppDbContext")
-        ?? throw new InvalidOperationException("No database connection configured.");
+        ?? throw new InvalidOperationException(
+            "No database connection: set DATABASE_URL or ConnectionStrings__WebAppDbContext.");
 }
 
 var builder = WebApplication.CreateBuilder(args);
