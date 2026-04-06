@@ -4,12 +4,14 @@ WORKDIR /src
 
 COPY BookingsSportsFields.sln .
 COPY BookingsSportsFields/BookingsSportsFields.csproj BookingsSportsFields/
+COPY BookingsSportsFields.Core/BookingsSportsFields.Core.csproj BookingsSportsFields.Core/
 COPY BookingsSportsFields.Application/BookingsSportsFields.Application.csproj BookingsSportsFields.Application/
 COPY BookingsSportsFields.DataAccess/BookingsSportsFields.DataAccess.csproj BookingsSportsFields.DataAccess/
 
 RUN dotnet restore BookingsSportsFields/BookingsSportsFields.csproj
 
 COPY BookingsSportsFields/ BookingsSportsFields/
+COPY BookingsSportsFields.Core/ BookingsSportsFields.Core/
 COPY BookingsSportsFields.Application/ BookingsSportsFields.Application/
 COPY BookingsSportsFields.DataAccess/ BookingsSportsFields.DataAccess/
 
