@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Security.Claims;
 using BookingsSportsFields.Application.Contracts.Response;
 using BookingsSportsFields.Application.InterfaceServices;
 using BookingsSportsFields.Controllers;
@@ -94,5 +95,46 @@ public class BookingControllerTests
         
         var statusResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(StatusCodes.Status500InternalServerError, statusResult.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetAllBookingsForSportFieldByDateForOwner_ReturnsUnauthorized_WhenNoClaim()
+    {
+        var sportFieldId = Guid.NewGuid();
+        var date = new DateTime(2026, 4, 8);
+
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
+
+        var result = await _controller.GetAllBookingsForSportFieldByDateForOwner(sportFieldId, date);
+
+        Assert.IsType<UnauthorizedObjectResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetAllBookingsForSportFieldByDateForOwner_ReturnsOk_ForAuthorizedOwner()
+    {
+        var ownerId = Guid.NewGuid();
+        var sportFieldId = Guid.NewGuid();
+        var date = new DateTime(2026, 4, 8);
+
+        var claims = new List<Claim> { new(ClaimTypes.NameIdentifier, ownerId.ToString()) };
+        var identity = new ClaimsIdentity(claims, "test");
+        var principal = new ClaimsPrincipal(identity);
+        _controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        _mockBookingService
+            .Setup(s => s.GetAllBookingsForSportFieldByDateForOwner(ownerId, sportFieldId, date))
+            .ReturnsAsync(new List<BookingsEntity>());
+
+        var result = await _controller.GetAllBookingsForSportFieldByDateForOwner(sportFieldId, date);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        Assert.IsType<List<BookingResponse>>(okResult.Value);
     }
 }

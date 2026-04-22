@@ -3,6 +3,7 @@ using System;
 using BookingsSportsFields.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BookingsSportsFields.DataAccess.Migrations
 {
     [DbContext(typeof(BookingsSportsFieldsDBContext))]
-    partial class BookingsSportsFieldsDBContextModelSnapshot : ModelSnapshot
+    [Migration("20260407150349_AddSportsFieldAutoConfirmBookings")]
+    partial class AddSportsFieldAutoConfirmBookings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

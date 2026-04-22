@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.DataAccess.ModelEntity;
+using BookingsSportsFields.DataAccess.ModelEntity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System;
@@ -57,6 +57,8 @@ namespace BookingsSportsFields.DataAccess.Configurations
                 .HasForeignKey(t => t.SportsFieldId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.Property(sf => sf.AutoConfirmBookings)
+                .HasDefaultValue(false);
         }
     }
 }

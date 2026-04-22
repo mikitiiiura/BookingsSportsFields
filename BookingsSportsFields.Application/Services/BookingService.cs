@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.Application.Contracts.Request;
+using BookingsSportsFields.Application.Contracts.Request;
 using BookingsSportsFields.Application.InterfaceServices;
 using BookingsSportsFields.Core;
 using BookingsSportsFields.Core.Model;
@@ -18,12 +18,18 @@ namespace BookingsSportsFields.Application.Services
     public class BookingService : IBookingService
     {
         private readonly IBookingsRepository _bookingsRepository;
+        private readonly ISportsFieldsRepository _sportsFieldsRepository;
         private readonly ILogger<BookingService> _logger;
         private readonly UserManager<UserEntity> _userManager;
 
-        public BookingService(IBookingsRepository bookingsRepository, ILogger<BookingService> logger, UserManager<UserEntity> userManager)
+        public BookingService(
+            IBookingsRepository bookingsRepository,
+            ISportsFieldsRepository sportsFieldsRepository,
+            ILogger<BookingService> logger,
+            UserManager<UserEntity> userManager)
         {
             _bookingsRepository = bookingsRepository;
+            _sportsFieldsRepository = sportsFieldsRepository;
             _logger = logger;
             _userManager = userManager;
         }
@@ -41,11 +47,12 @@ namespace BookingsSportsFields.Application.Services
                 userId, sportField, UtcDateTimeHelper.UtcStartOfCalendarDay(date));
         }
         
-        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid sportFieldId, DateTime date)
+        public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid ownerId, Guid sportFieldId, DateTime date)
         {
-            _logger.LogInformation("Service: Fetching all bookings for sport field by date for owner");
+            _logger.LogInformation("Service: Fetching all bookings for owner {OwnerId}, field {FieldId}, date {Date}",
+                ownerId, sportFieldId, date);
             return await _bookingsRepository.GetAllBookingsForSportFieldByDateForOwner(
-                sportFieldId, UtcDateTimeHelper.UtcStartOfCalendarDay(date));
+                ownerId, sportFieldId, UtcDateTimeHelper.UtcStartOfCalendarDay(date));
         }
 
         public async Task<List<BookingsEntity>> GetBookingByUser(Guid userId)
@@ -212,7 +219,65 @@ namespace BookingsSportsFields.Application.Services
             var day = date.HasValue ? UtcDateTimeHelper.UtcStartOfCalendarDay(date.Value) : (DateTime?)null;
             return await _bookingsRepository.GetReservedReservationsForFieldOwnerCRM(ownerId, status, day, titleOfSportFild);
         }
-        
+
+        public async Task ConfirmBookingByManagerAsync(Guid bookingId, Guid ownerUserId)
+        {
+            var booking = await _bookingsRepository.GetByIdWithSportsFieldAsync(bookingId);
+            if (booking == null)
+                throw new KeyNotFoundException("Бронювання не знайдено");
+            if (booking.SportsField?.OwnerId != ownerUserId)
+                throw new UnauthorizedAccessException("Немає прав на цей майданчик");
+            if (booking.Status != BookingStatus.Pending)
+                throw new InvalidOperationException("Підтвердити можна лише бронювання в статусі «Очікує» (Pending).");
+
+            await _bookingsRepository.UpdateStatus(bookingId, BookingStatus.Confirmed);
+            _logger.LogInformation("Менеджер {OwnerId} підтвердив бронювання {BookingId}", ownerUserId, bookingId);
+        }
+
+        public async Task CancelBookingByManagerAsync(Guid bookingId, Guid ownerUserId)
+        {
+            var booking = await _bookingsRepository.GetByIdWithSportsFieldAsync(bookingId);
+            if (booking == null)
+                throw new KeyNotFoundException("Бронювання не знайдено");
+            if (booking.SportsField?.OwnerId != ownerUserId)
+                throw new UnauthorizedAccessException("Немає прав на цей майданчик");
+            if (booking.Status is BookingStatus.Cancelled or BookingStatus.Completed)
+                throw new InvalidOperationException("Бронювання вже скасоване або завершене.");
+
+            var latestCancelUtc = booking.StartTime.AddHours(-1);
+            if (DateTime.UtcNow >= latestCancelUtc)
+                throw new InvalidOperationException(
+                    "Скасування менеджером можливе лише пізніше ніж за 1 годину до початку (зараз менше ніж година).");
+
+            await _bookingsRepository.UpdateStatus(bookingId, BookingStatus.Cancelled);
+            _logger.LogInformation("Менеджер {OwnerId} скасував бронювання {BookingId}", ownerUserId, bookingId);
+        }
+
+        public async Task<int> ConfirmAllPendingForFieldAsync(Guid sportsFieldId, Guid ownerUserId)
+        {
+            var field = await _sportsFieldsRepository.GetByIdAsync(sportsFieldId);
+            if (field == null)
+                throw new KeyNotFoundException("Майданчик не знайдено");
+            if (field.OwnerId != ownerUserId)
+                throw new UnauthorizedAccessException("Немає прав на цей майданчик");
+
+            var n = await _bookingsRepository.ConfirmAllPendingForSportsFieldAsync(sportsFieldId);
+            _logger.LogInformation("Менеджер {OwnerId} підтвердив масово {Count} бронювань на полі {FieldId}", ownerUserId, n, sportsFieldId);
+            return n;
+        }
+
+        public async Task SetAutoConfirmForFieldAsync(Guid sportsFieldId, bool enabled, Guid ownerUserId)
+        {
+            var field = await _sportsFieldsRepository.GetByIdWithTrackingAsync(sportsFieldId);
+            if (field == null)
+                throw new KeyNotFoundException("Майданчик не знайдено");
+            if (field.OwnerId != ownerUserId)
+                throw new UnauthorizedAccessException("Немає прав на цей майданчик");
+
+            field.AutoConfirmBookings = enabled;
+            await _sportsFieldsRepository.SaveChangesAsync();
+            _logger.LogInformation("AutoConfirmBookings={Enabled} для майданчика {FieldId} встановив {OwnerId}", enabled, sportsFieldId, ownerUserId);
+        }
 
     }
 }

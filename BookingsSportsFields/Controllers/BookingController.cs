@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using BookingsSportsFields.Application.Contracts.Request;
 using BookingsSportsFields.Application.Contracts.Response;
 using BookingsSportsFields.Application.InterfaceServices;
@@ -45,11 +45,25 @@ namespace BookingsSportsFields.Controllers
         }
         
         [HttpGet("GetAllBookingsForSportFieldByDateForOwner")]
+        [Authorize]
         public async Task<ActionResult<List<BookingResponse>>> GetAllBookingsForSportFieldByDateForOwner(
-            Guid sportFieldId, 
-            DateTime date)
+            [FromQuery] Guid sportFieldId,
+            [FromQuery] DateTime date)
         {
-            var bookings = await _bookingService.GetAllBookingsForSportFieldByDateForOwner(sportFieldId, date);
+            _logger.LogInformation(
+                "Owner bookings request auth={IsAuth}, nameIdentifier={NameId}, name={Name}, role={Role}, sportFieldId={FieldId}, date={Date}",
+                User?.Identity?.IsAuthenticated ?? false,
+                User?.FindFirstValue(ClaimTypes.NameIdentifier),
+                User?.FindFirstValue(ClaimTypes.Name),
+                User?.FindFirstValue(ClaimTypes.Role),
+                sportFieldId,
+                date);
+
+            var ownerId = ParseUserId(User);
+            if (ownerId == null)
+                return Unauthorized(new { message = "Missing or invalid NameIdentifier claim." });
+
+            var bookings = await _bookingService.GetAllBookingsForSportFieldByDateForOwner(ownerId.Value, sportFieldId, date);
 
             var response = bookings.Select(x => new BookingResponse(x)).ToList();
             return Ok(response);
@@ -247,6 +261,120 @@ namespace BookingsSportsFields.Controllers
             }
         }
 
+        /// <summary>Підтвердити одне бронювання (Pending → Confirmed). Лише власник майданчика.</summary>
+        [Authorize]
+        [HttpPost("manager/bookings/{bookingId:guid}/confirm")]
+        public async Task<IActionResult> ConfirmBookingByManager(Guid bookingId)
+        {
+            var ownerId = ParseUserId(User);
+            if (ownerId == null)
+                return Unauthorized();
+
+            try
+            {
+                await _bookingService.ConfirmBookingByManagerAsync(bookingId, ownerId.Value);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Скасувати бронювання менеджером (не пізніше ніж за 1 год до початку).</summary>
+        [Authorize]
+        [HttpPost("manager/bookings/{bookingId:guid}/cancel")]
+        public async Task<IActionResult> CancelBookingByManager(Guid bookingId)
+        {
+            var ownerId = ParseUserId(User);
+            if (ownerId == null)
+                return Unauthorized();
+
+            try
+            {
+                await _bookingService.CancelBookingByManagerAsync(bookingId, ownerId.Value);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Підтвердити всі Pending на майданчику.</summary>
+        [Authorize]
+        [HttpPost("manager/fields/{sportsFieldId:guid}/confirm-all-pending")]
+        public async Task<ActionResult<ConfirmAllPendingResponse>> ConfirmAllPendingForField(Guid sportsFieldId)
+        {
+            var ownerId = ParseUserId(User);
+            if (ownerId == null)
+                return Unauthorized();
+
+            try
+            {
+                var count = await _bookingService.ConfirmAllPendingForFieldAsync(sportsFieldId, ownerId.Value);
+                return Ok(new ConfirmAllPendingResponse { ConfirmedCount = count });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+        }
+
+        /// <summary>Автопідтвердження нових бронювань для майданчика.</summary>
+        [Authorize]
+        [HttpPut("manager/fields/{sportsFieldId:guid}/auto-confirm")]
+        public async Task<IActionResult> SetAutoConfirmForField(Guid sportsFieldId, [FromBody] AutoConfirmBookingsRequest? body)
+        {
+            var ownerId = ParseUserId(User);
+            if (ownerId == null)
+                return Unauthorized();
+            if (body == null)
+                return BadRequest(new { message = "Очікується тіло { \"enabled\": true|false }" });
+
+            try
+            {
+                await _bookingService.SetAutoConfirmForFieldAsync(sportsFieldId, body.Enabled, ownerId.Value);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+        }
+
+        private static Guid? ParseUserId(ClaimsPrincipal? user)
+        {
+            if (user == null)
+                return null;
+            var s = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(s, out var id) ? id : null;
+        }
+
         // [Authorize]
         [AllowAnonymous]
         [HttpGet("filtered-bookings-crm")]
@@ -274,5 +402,16 @@ namespace BookingsSportsFields.Controllers
         public int DurationMinutes { get; set; }
         public int SportType { get; set; }
         public Guid? SportsFieldInstanceId { get; set; }  // ← ДОДАЙ ЦЕ ПОЛЕ
+    }
+
+    public class AutoConfirmBookingsRequest
+    {
+        /// <summary>Якщо true — нові бронювання одразу Confirmed.</summary>
+        public bool Enabled { get; set; }
+    }
+
+    public class ConfirmAllPendingResponse
+    {
+        public int ConfirmedCount { get; set; }
     }
 }

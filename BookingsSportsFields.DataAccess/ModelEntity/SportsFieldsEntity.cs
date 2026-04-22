@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.Core.Model;
+using BookingsSportsFields.Core.Model;
 using System;
 using System.Text.Json.Serialization;
 
@@ -58,6 +58,11 @@ namespace BookingsSportsFields.DataAccess.ModelEntity
         public List<SportsFieldSportTypeEntity> TypesWithDetails  { get; set; } = [];
         
         public bool IsDeleted { get; set; } = false;
+
+        /// <summary>
+        /// Якщо true — нові бронювання одразу отримують статус Confirmed без ручного підтвердження.
+        /// </summary>
+        public bool AutoConfirmBookings { get; set; }
         
         public ICollection<SportsFieldInstanceEntity> Instances { get; set; } 
             = new List<SportsFieldInstanceEntity>();

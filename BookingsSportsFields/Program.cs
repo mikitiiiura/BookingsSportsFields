@@ -6,6 +6,7 @@ using BookingsSportsFields.DataAccess;
 using BookingsSportsFields.DataAccess.Abstruction;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using BookingsSportsFields.DataAccess.Repositories;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -22,7 +23,34 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddAuthorization();
 
 builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
-    .AddCookie(IdentityConstants.ApplicationScheme);
+    .AddCookie(IdentityConstants.ApplicationScheme, options =>
+    {
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            },
+            OnRedirectToAccessDenied = context =>
+            {
+                if (context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                }
+
+                context.Response.Redirect(context.RedirectUri);
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 var connectionString = builder.Configuration.GetConnectionString("WebAppDbContext")
     ?? throw new InvalidOperationException(

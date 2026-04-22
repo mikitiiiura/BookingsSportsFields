@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.Core.Model;
+using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using System;
 using System.Collections.Generic;
@@ -45,8 +45,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
         //DateTime CreatedAt,
         string ImageUrl,
         LocationDto Location,
-        OwnerDto? Owner
-        
+        OwnerDto? Owner,
+        bool AutoConfirmBookings
     )
     {
         public SportsFieldResponce(SportsFieldsEntity sportsFields) : this
@@ -77,7 +77,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
                 //sportsFields.CreatedAt,
                 sportsFields.ImageUrl,
                 sportsFields.Location != null ? new LocationDto(sportsFields.Location.Id, sportsFields.Location.Latitude, sportsFields.Location.Longitude, sportsFields.Location.Address, sportsFields.Location.City) : null!,
-                sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!
+                sportsFields.Owner != null ? new OwnerDto(sportsFields.Owner.Id, sportsFields.Owner.FullName) : null!,
+                sportsFields.AutoConfirmBookings
             )
         {
         }
@@ -207,7 +208,8 @@ namespace BookingsSportsFields.Application.Contracts.Response
                 bookings.SportsField.Location.Address,
                 bookings.SportsField.Location.City
             ) : null!,
-            bookings.SportsField.Owner != null ? new OwnerDto(bookings.SportsField.Owner.Id, bookings.SportsField.Owner.FullName) : null!
+            bookings.SportsField.Owner != null ? new OwnerDto(bookings.SportsField.Owner.Id, bookings.SportsField.Owner.FullName) : null!,
+            bookings.SportsField.AutoConfirmBookings
         ) : null!,
         bookings.SportsFieldInstance != null 
             ? new InstanceDto(bookings.SportsFieldInstance.Id, bookings.SportsFieldInstance.DisplayName, bookings.SportsFieldInstance.IsActive) 

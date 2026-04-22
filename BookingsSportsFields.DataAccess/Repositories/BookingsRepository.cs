@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq.Expressions;
 using BookingsSportsFields.Core;
 using BookingsSportsFields.Core.Model;
@@ -131,24 +131,60 @@ namespace BookingsSportsFields.DataAccess.Repositories
         /// Для CRM власника/менеджера майданчика — всі бронювання на цьому майданчику
         /// </summary>
         public async Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(
-            Guid sportFieldId, 
+            Guid ownerId,
+            Guid sportFieldId,
             DateTime date)
         {
             var startOfDay = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
             var endExclusive = startOfDay.AddDays(1);
 
-            _logger.LogInformation("Fetching ALL bookings for sport field (for owner). Field={FieldId}, UtcDayStart={Day}",
-                sportFieldId, startOfDay);
+            _logger.LogInformation(
+                "Owner bookings query start: Owner={OwnerId}, Field={FieldId}, DayStartUtc={Start}, DayEndUtc={End}",
+                ownerId, sportFieldId, startOfDay, endExclusive);
 
-            return await _dBContext.Bookings
-                .Where(b => b.SportsFieldId == sportFieldId &&
-                            b.StartTime < endExclusive &&
-                            b.EndTime > startOfDay)
+            var baseQuery = _dBContext.Bookings.AsNoTracking();
+            var totalCount = await baseQuery.CountAsync();
+            var byFieldIdQuery = baseQuery.Where(b => b.SportsFieldId == sportFieldId);
+            var byFieldIdCount = await byFieldIdQuery.CountAsync();
+            var byInstanceFieldCount = await baseQuery
+                .Where(b => b.SportsFieldInstance != null && b.SportsFieldInstance.SportsFieldId == sportFieldId)
+                .CountAsync();
+            var byFieldQuery = baseQuery.Where(b =>
+                b.SportsFieldId == sportFieldId ||
+                (b.SportsFieldInstance != null && b.SportsFieldInstance.SportsFieldId == sportFieldId));
+            var byFieldCount = await byFieldQuery.CountAsync();
+            var byOwnerQuery = byFieldQuery.Where(b =>
+                b.SportsField.OwnerId == ownerId ||
+                (b.SportsFieldInstance != null && b.SportsFieldInstance.SportsField.OwnerId == ownerId));
+            var byOwnerCount = await byOwnerQuery.CountAsync();
+            var byDateQuery = byOwnerQuery.Where(b => b.StartTime < endExclusive && b.EndTime > startOfDay);
+            var byDateCount = await byDateQuery.CountAsync();
+            var minStart = await byFieldQuery.Select(b => (DateTime?)b.StartTime).MinAsync();
+            var maxStart = await byFieldQuery.Select(b => (DateTime?)b.StartTime).MaxAsync();
+            var last20 = await baseQuery
+                .OrderByDescending(b => b.CreatedAt)
+                .Take(20)
+                .Select(b => new
+                {
+                    b.Id,
+                    b.SportsFieldId,
+                    b.SportsFieldInstanceId,
+                    b.StartTime,
+                    b.EndTime,
+                    b.Status
+                })
+                .ToListAsync();
+
+            _logger.LogInformation(
+                "Owner bookings diagnostics: Total={Total}, ByFieldId={ByFieldId}, ByInstanceField={ByInstanceField}, ByFieldMerged={ByField}, ByOwner={ByOwner}, ByDate={ByDate}, FieldMinStart={MinStart}, FieldMaxStart={MaxStart}",
+                totalCount, byFieldIdCount, byInstanceFieldCount, byFieldCount, byOwnerCount, byDateCount, minStart, maxStart);
+            _logger.LogInformation("Owner bookings last20: {@Last20}", last20);
+
+            return await byDateQuery
                 .Include(b => b.SportsFieldInstance)
                 .Include(b => b.User)
                 .Include(b => b.SportsField)
                 .ThenInclude(sf => sf.Owner)
-                .AsNoTracking()
                 .OrderByDescending(b => b.StartTime)
                 .ToListAsync();
         }
@@ -271,6 +307,23 @@ namespace BookingsSportsFields.DataAccess.Repositories
 {
     var dayStart = UtcDateTimeHelper.UtcStartOfCalendarDay(date);
     var dayEnd = dayStart.AddDays(1);
+    var dayOfWeek = dayStart.DayOfWeek;
+
+    var schedule = await _dBContext.SportsFieldSchedules
+        .AsNoTracking()
+        .Where(s => s.SportTypeDetail.SportsFieldId == sportsFieldId &&
+                    s.SportTypeDetail.Type == sportType &&
+                    s.DayOfWeek == dayOfWeek)
+        .Select(s => new { s.AvailableFrom, s.AvailableTo })
+        .FirstOrDefaultAsync();
+
+    if (schedule == null)
+    {
+        _logger.LogInformation(
+            "Для цього дня немає графіка роботи. Field={FieldId}, Type={Type}, DayOfWeek={DayOfWeek}",
+            sportsFieldId, sportType, dayOfWeek);
+        return new List<TimeSlot>();
+    }
 
     _logger.LogInformation(
         "Запит слотів: Field={FieldId}, UtcDayStart={DayStart}, UtcDayEnd={DayEnd}, Type={Type}, Instance={InstanceId}",
@@ -303,8 +356,16 @@ namespace BookingsSportsFields.DataAccess.Repositories
     const int slotDurationMinutes = 60;      // 1 година
     const int bufferMinutes = 30;            // 30 хв перерва між бронюваннями
 
-    TimeSpan openingTime = new TimeSpan(8, 0, 0);
-    TimeSpan closingTime = new TimeSpan(22, 0, 0);
+    TimeSpan openingTime = schedule.AvailableFrom;
+    TimeSpan closingTime = schedule.AvailableTo;
+
+    if (closingTime <= openingTime)
+    {
+        _logger.LogInformation(
+            "Некоректний графік роботи (AvailableTo <= AvailableFrom). Field={FieldId}, Type={Type}, DayOfWeek={DayOfWeek}",
+            sportsFieldId, sportType, dayOfWeek);
+        return new List<TimeSlot>();
+    }
 
     var availableSlots = new List<TimeSlot>();
     var current = dayStart + openingTime;
@@ -515,6 +576,21 @@ namespace BookingsSportsFields.DataAccess.Repositories
                 .AnyAsync(b => b.UserId == userId 
                                && b.SportsFieldId == sportsFieldId 
                                && b.Status == BookingStatus.Completed);
+        }
+
+        public async Task<BookingsEntity?> GetByIdWithSportsFieldAsync(Guid bookingId)
+        {
+            return await _dBContext.Bookings
+                .AsNoTracking()
+                .Include(b => b.SportsField)
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+        }
+
+        public async Task<int> ConfirmAllPendingForSportsFieldAsync(Guid sportsFieldId)
+        {
+            return await _dBContext.Bookings
+                .Where(b => b.SportsFieldId == sportsFieldId && b.Status == BookingStatus.Pending)
+                .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Confirmed));
         }
 
     }

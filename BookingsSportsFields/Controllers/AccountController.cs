@@ -1,7 +1,9 @@
 ﻿using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.ModelEntity;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
 
 namespace BookingsSportsFields.Controllers;
@@ -103,6 +105,18 @@ public class AccountController : ControllerBase
         if (!isPasswordValid)
             return Unauthorized(new { Message = "Invalid email or password" });
 
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName ?? user.Email ?? user.UserName ?? string.Empty),
+            new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
+
+        var identity = new ClaimsIdentity(claims, IdentityConstants.ApplicationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, principal);
+
         return Ok(new
         {
             Message = "Login successful",
@@ -139,6 +153,18 @@ public class AccountController : ControllerBase
         if (user.Role != UserRole.AdminSportsFields)
             return Unauthorized(new { Message = "Access denied. User is not an AdminSportsFields." });
         
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName ?? user.Email ?? user.UserName ?? string.Empty),
+            new(ClaimTypes.Email, user.Email ?? string.Empty),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
+
+        var identity = new ClaimsIdentity(claims, IdentityConstants.ApplicationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await HttpContext.SignInAsync(IdentityConstants.ApplicationScheme, principal);
+
         return Ok(new
         {
             Message = "Login successful",

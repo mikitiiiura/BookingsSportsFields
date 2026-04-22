@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.Application.Contracts.Request;
+using BookingsSportsFields.Application.Contracts.Request;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using BookingsSportsFields.DataAccess.Repositories;
 
@@ -30,7 +30,19 @@ namespace BookingsSportsFields.Application.InterfaceServices
         Task<List<BookingsEntity>> GetReservedReservationsForFieldOwnerCRM(Guid ownerId, int? status, DateTime? date,
             string? titleOfSportFild);
 
-        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid sportFieldId, DateTime date);
+        Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(Guid ownerId, Guid sportFieldId, DateTime date);
+
+        /// <summary>Підтвердити бронювання (тільки Pending). Власник майданчика.</summary>
+        Task ConfirmBookingByManagerAsync(Guid bookingId, Guid ownerUserId);
+
+        /// <summary>Скасувати бронювання власником: не пізніше ніж за 1 год до початку.</summary>
+        Task CancelBookingByManagerAsync(Guid bookingId, Guid ownerUserId);
+
+        /// <summary>Підтвердити всі очікуючі бронювання на майданчику.</summary>
+        Task<int> ConfirmAllPendingForFieldAsync(Guid sportsFieldId, Guid ownerUserId);
+
+        /// <summary>Увімкнути/вимкнути автопідтвердження нових бронювань для майданчика.</summary>
+        Task SetAutoConfirmForFieldAsync(Guid sportsFieldId, bool enabled, Guid ownerUserId);
 
     }
 }

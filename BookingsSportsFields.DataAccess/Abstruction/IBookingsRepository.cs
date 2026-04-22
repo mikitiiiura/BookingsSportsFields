@@ -1,4 +1,4 @@
-﻿using BookingsSportsFields.Core.Model;
+using BookingsSportsFields.Core.Model;
 using BookingsSportsFields.DataAccess.ModelEntity;
 using BookingsSportsFields.DataAccess.Repositories;
 
@@ -54,8 +54,14 @@ namespace BookingsSportsFields.DataAccess.Abstruction
         Task<bool> UserHasCompletedBookingAsync(Guid userId, Guid sportsFieldId);
 
         Task<List<BookingsEntity>> GetAllBookingsForSportFieldByDateForOwner(
+            Guid ownerId,
             Guid sportFieldId,
             DateTime date);
+
+        Task<BookingsEntity?> GetByIdWithSportsFieldAsync(Guid bookingId);
+
+        /// <summary>Підтвердити всі бронювання зі статусом Pending для майданчика.</summary>
+        Task<int> ConfirmAllPendingForSportsFieldAsync(Guid sportsFieldId);
     }
     
 }
